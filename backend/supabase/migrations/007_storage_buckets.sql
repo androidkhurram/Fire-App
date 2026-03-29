@@ -1,0 +1,9 @@
+-- Storage buckets - Create via Supabase Dashboard: Storage > New Bucket
+--
+-- Required buckets:
+-- 1. inspection-photos    - Photos from inspections
+-- 2. inspection-reports   - PDF reports for inspection/maintenance
+-- 3. permit-documents     - Permit documents
+-- 4. invoice-pdfs         - Invoice PDFs
+--
+-- Set each bucket to private (public: false) and configure RLS as needed.

@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+
+# Environment and secrets (use .env.example templates)
+.env
+.env.local
+.env.*.local
+*.pem
+
+# Next.js
+admin-portal/.next/
+admin-portal/out/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# OS / editor
+.DS_Store
+.idea/
+*.swp
+*.swo
+
+# React Native / Xcode (local machine paths)
+**/.xcode.env.local
+
+# React Native / Expo (mobile-app)
+mobile-app/.expo/
+mobile-app/dist/
+mobile-app/ios/Pods/
+mobile-app/ios/build/
+mobile-app/android/app/build/
+mobile-app/android/build/
+mobile-app/android/.gradle/
+mobile-app/.metro-health-check*
+
+# Xcode
+**/xcuserdata/
+**/*.xcworkspace/xcuserdata/
+
+# Backend / Supabase local
+backend/.branches/
+.supabase/
+
+# Vercel
+.vercel
+
+# TypeScript build info
+*.tsbuildinfo

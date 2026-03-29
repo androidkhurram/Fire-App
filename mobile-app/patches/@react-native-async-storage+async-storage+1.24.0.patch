@@ -1,0 +1,50 @@
+diff --git a/node_modules/@react-native-async-storage/async-storage/ios/RNCAsyncStorage.mm b/node_modules/@react-native-async-storage/async-storage/ios/RNCAsyncStorage.mm
+index 6b81187..31d751e 100644
+--- a/node_modules/@react-native-async-storage/async-storage/ios/RNCAsyncStorage.mm
++++ b/node_modules/@react-native-async-storage/async-storage/ios/RNCAsyncStorage.mm
+@@ -159,7 +159,13 @@ static void RCTAppendError(NSDictionary *error, NSMutableArray<NSDictionary *> *
+       RCTLogWarn(
+           @"Persistent storage is not supported on tvOS, your data may be removed at any point.");
+ #endif
++#if TARGET_OS_SIMULATOR
++      // Use Documents path on simulator - Application Support can fail with "folder doesn't exist"
++      // on fresh installs (NSCocoaErrorDomain Code=4)
++      storageDirectory = RCTCreateStorageDirectoryPath_deprecated(RCTStorageDirectory);
++#else
+       storageDirectory = RCTCreateStorageDirectoryPath(RCTStorageDirectory);
++#endif
+     });
+     return storageDirectory;
+ }
+@@ -523,11 +529,11 @@ - (NSDictionary *)_ensureSetup
+             // by default, we want to exclude AsyncStorage data from backup
+             isExcludedFromBackup = @YES;
+         }
+-        RCTAsyncStorageSetExcludedFromBackup(RCTCreateStorageDirectoryPath(RCTStorageDirectory),
++        RCTAsyncStorageSetExcludedFromBackup(RCTGetStorageDirectory(),
+                                              isExcludedFromBackup);
+ 
+         NSDictionary *errorOut = nil;
+-        NSString *serialized = RCTReadFile(RCTCreateStorageDirectoryPath(RCTGetManifestFilePath()),
++        NSString *serialized = RCTReadFile(RCTCreateManifestFilePath(RCTGetStorageDirectory()),
+                                            RCTManifestFileName,
+                                            &errorOut);
+         if (!serialized) {
+@@ -563,7 +569,7 @@ - (NSDictionary *)_writeManifest:(NSMutableArray<NSDictionary *> **)errors
+ {
+     NSError *error;
+     NSString *serialized = RCTJSONStringify(_manifest, &error);
+-    [serialized writeToFile:RCTCreateStorageDirectoryPath(RCTGetManifestFilePath())
++    [serialized writeToFile:RCTCreateManifestFilePath(RCTGetStorageDirectory())
+                  atomically:YES
+                    encoding:NSUTF8StringEncoding
+                       error:&error];
+@@ -632,6 +638,8 @@ - (NSDictionary *)_writeEntry:(NSArray<NSString *> *)entry changedManifest:(BOOL
+         _manifest[key] = value;
+         return nil;
+     }
++    NSError *dirError = nil;
++    _createStorageDirectory(RCTGetStorageDirectory(), &dirError);
+     [value writeToFile:filePath atomically:YES encoding:NSUTF8StringEncoding error:&error];
+     [RCTGetCache() setObject:value forKey:key cost:value.length];
+     if (error) {

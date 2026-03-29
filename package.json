@@ -1,0 +1,18 @@
+{
+  "name": "fireapp-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "admin-portal",
+    "backend"
+  ],
+  "scripts": {
+    "mobile": "cd mobile-app && npm run start",
+    "admin": "cd admin-portal && npm run dev",
+    "dev:clean": "cd admin-portal && npm run dev:clean",
+    "backend:serve": "supabase functions serve --project-ref backend"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

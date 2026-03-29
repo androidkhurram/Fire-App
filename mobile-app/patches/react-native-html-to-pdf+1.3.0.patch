@@ -1,0 +1,309 @@
+diff --git a/node_modules/react-native-html-to-pdf/ios/HtmlToPdf.h b/node_modules/react-native-html-to-pdf/ios/HtmlToPdf.h
+index a17a1fc..9ec71aa 100644
+--- a/node_modules/react-native-html-to-pdf/ios/HtmlToPdf.h
++++ b/node_modules/react-native-html-to-pdf/ios/HtmlToPdf.h
+@@ -1,7 +1,6 @@
+-#import <HtmlToPdfSpec/HtmlToPdfSpec.h>
+-#import <React/RCTView.h>
++#import <React/RCTBridgeModule.h>
+ #import <WebKit/WebKit.h>
+ 
+-@interface HtmlToPdf : RCTView <NativeHtmlToPdfSpec, WKNavigationDelegate>
++@interface HtmlToPdf : NSObject <RCTBridgeModule, WKNavigationDelegate>
+ 
+ @end
+diff --git a/node_modules/react-native-html-to-pdf/ios/HtmlToPdf.mm b/node_modules/react-native-html-to-pdf/ios/HtmlToPdf.mm
+index 4581531..bbf8a6a 100644
+--- a/node_modules/react-native-html-to-pdf/ios/HtmlToPdf.mm
++++ b/node_modules/react-native-html-to-pdf/ios/HtmlToPdf.mm
+@@ -1,7 +1,7 @@
+ #import "HtmlToPdf.h"
+ #import <React/RCTConvert.h>
+-#import <React/RCTEventDispatcher.h>
+ #import <UIKit/UIKit.h>
++#import <WebKit/WebKit.h>
+ 
+ #define PDFSize CGSizeMake(612, 792)
+ 
+@@ -33,7 +33,6 @@ - (NSData *)printToPDF:(NSInteger *)_numberOfPages
+ @end
+ 
+ @implementation HtmlToPdf {
+-  RCTEventDispatcher *_eventDispatcher;
+   RCTPromiseResolveBlock _resolveBlock;
+   RCTPromiseRejectBlock _rejectBlock;
+   NSString *_html;
+@@ -43,197 +42,130 @@ @implementation HtmlToPdf {
+   NSInteger _numberOfPages;
+   CGSize _PDFSize;
+   WKWebView *_webView;
++  UIView *_containerView;
+   float _paddingBottom;
+   float _paddingTop;
+   float _paddingLeft;
+   float _paddingRight;
+   BOOL _base64;
+-  BOOL autoHeight;
+ }
+ 
+-- (instancetype)init {
+-  if (self = [super init]) {
+-    _webView = [[WKWebView alloc] initWithFrame:self.bounds];
+-    _webView.navigationDelegate = self;
+-    [self addSubview:_webView];
+-    autoHeight = false;
+-  }
+-  return self;
+-}
+ RCT_EXPORT_MODULE()
+ 
+-- (void)add:(double)a
+-          b:(double)b
+-    resolve:(RCTPromiseResolveBlock)resolve
+-     reject:(RCTPromiseRejectBlock)reject {
+-  NSNumber *result = [[NSNumber alloc] initWithInteger:a + b];
+-  resolve(result);
+-}
+-
+-- (void)convert:(JS::NativeHtmlToPdf::PDFOptions &)options
++- (void)convert:(NSDictionary *)options
+         resolve:(RCTPromiseResolveBlock)resolve
+          reject:(RCTPromiseRejectBlock)reject {
+ 
+-  if (options.html()) {
+-    _html = options.html();
+-  }
+-
+-  if (options.fileName()) {
+-    _fileName = options.fileName();
+-  } else {
+-    _fileName = [[NSProcessInfo processInfo] globallyUniqueString];
+-  }
++  _html = options[@"html"] ?: @"";
++  _fileName = options[@"fileName"] ?: [[NSProcessInfo processInfo] globallyUniqueString];
+ 
+-  // Default Color
+   _bgColor = [UIColor colorWithRed:(246.0 / 255.0)
+                              green:(245.0 / 255.0)
+                               blue:(240.0 / 255.0)
+                              alpha:1];
+-  if (options.bgColor()) {
+-    NSString *hex = options.bgColor();
++  NSString *hex = options[@"bgColor"];
++  if (hex && hex.length > 0) {
+     hex = [hex uppercaseString];
+-    NSString *cString = [hex
+-        stringByTrimmingCharactersInSet:[NSCharacterSet
+-                                            whitespaceAndNewlineCharacterSet]];
+-
+-    if ((cString.length) == 7) {
++    NSString *cString = [hex stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
++    if (cString.length == 7) {
+       NSScanner *scanner = [NSScanner scannerWithString:cString];
+-
+       UInt32 rgbValue = 0;
+-      [scanner setScanLocation:1]; // Bypass '#' character
++      [scanner setScanLocation:1];
+       [scanner scanHexInt:&rgbValue];
+-
+-      _bgColor =
+-          [UIColor colorWithRed:((float)((rgbValue & 0xFF0000) >> 16)) / 255.0
+-                          green:((float)((rgbValue & 0x00FF00) >> 8)) / 255.0
+-                           blue:((float)((rgbValue & 0x0000FF) >> 0)) / 255.0
+-                          alpha:1.0];
++      _bgColor = [UIColor colorWithRed:((float)((rgbValue & 0xFF0000) >> 16)) / 255.0
++                                green:((float)((rgbValue & 0x00FF00) >> 8)) / 255.0
++                                 blue:((float)((rgbValue & 0x0000FF) >> 0)) / 255.0
++                                alpha:1.0];
+     }
+   }
+ 
+-  if (options.directory() &&
+-      [options.directory() isEqualToString:@"Documents"]) {
+-    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,
+-                                                         NSUserDomainMask, YES);
+-    NSString *documentsPath = [paths objectAtIndex:0];
+-
+-    _filePath =
+-        [NSString stringWithFormat:@"%@/%@.pdf", documentsPath, _fileName];
++  if (options[@"directory"] && [options[@"directory"] isEqualToString:@"Documents"]) {
++    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
++    NSString *documentsPath = paths.firstObject;
++    _filePath = [NSString stringWithFormat:@"%@/%@.pdf", documentsPath, _fileName];
+   } else {
+-    _filePath = [NSString
+-        stringWithFormat:@"%@%@.pdf", NSTemporaryDirectory(), _fileName];
++    _filePath = [NSString stringWithFormat:@"%@%@.pdf", NSTemporaryDirectory(), _fileName];
+   }
+ 
+-  if (options.base64().has_value() && options.base64().value()) {
+-    _base64 = true;
+-  } else {
+-    _base64 = false;
+-  }
++  _base64 = [options[@"base64"] boolValue];
+ 
+-  if (options.height() && options.height()) {
+-    float width = float(options.width().value());
+-    float height = float(options.height().value());
+-    _PDFSize = CGSizeMake(width, height);
++  NSNumber *widthNum = options[@"width"];
++  NSNumber *heightNum = options[@"height"];
++  if (widthNum && heightNum) {
++    _PDFSize = CGSizeMake([widthNum floatValue], [heightNum floatValue]);
+   } else {
+     _PDFSize = PDFSize;
+   }
+ 
+-  if (options.paddingBottom()) {
+-    _paddingBottom = float(options.paddingBottom().value());
+-  } else {
+-    _paddingBottom = 10.0f;
+-  }
+-
+-  if (options.paddingLeft()) {
+-    _paddingLeft = float(options.paddingLeft().value());
+-  } else {
+-    _paddingLeft = 10.0f;
+-  }
+-
+-  if (options.paddingTop()) {
+-    _paddingTop = float(options.paddingTop().value());
+-  } else {
+-    _paddingTop = 10.0f;
+-  }
++  _paddingBottom = options[@"paddingBottom"] ? [options[@"paddingBottom"] floatValue] : 10.0f;
++  _paddingLeft = options[@"paddingLeft"] ? [options[@"paddingLeft"] floatValue] : 10.0f;
++  _paddingTop = options[@"paddingTop"] ? [options[@"paddingTop"] floatValue] : 10.0f;
++  _paddingRight = options[@"paddingRight"] ? [options[@"paddingRight"] floatValue] : 10.0f;
+ 
+-  if (options.paddingRight()) {
+-    _paddingRight = float(options.paddingRight().value());
+-  } else {
+-    _paddingRight = 10.0f;
++  NSNumber *paddingNum = options[@"padding"];
++  if (paddingNum) {
++    float p = [paddingNum floatValue];
++    _paddingTop = _paddingBottom = _paddingLeft = _paddingRight = p;
+   }
+ 
+-  if (options.padding()) {
+-    _paddingTop = float(options.padding().value());
+-    _paddingBottom = float(options.padding().value());
+-    _paddingLeft = float(options.padding().value());
+-    _paddingRight = float(options.padding().value());
+-  }
++  _resolveBlock = resolve;
++  _rejectBlock = reject;
+ 
+-  if (@available(iOS 16.4, *)) {
+-    if (options.shouldPrintBackgrounds().has_value() &&
+-        options.shouldPrintBackgrounds().value()) {
+-      _webView.configuration.preferences.shouldPrintBackgrounds = true;
++  dispatch_async(dispatch_get_main_queue(), ^{
++    self->_containerView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, self->_PDFSize.width, self->_PDFSize.height)];
++    self->_webView = [[WKWebView alloc] initWithFrame:self->_containerView.bounds];
++    self->_webView.navigationDelegate = self;
++    [self->_containerView addSubview:self->_webView];
++
++    if (@available(iOS 16.4, *)) {
++      if ([options[@"shouldPrintBackgrounds"] boolValue]) {
++        self->_webView.configuration.preferences.shouldPrintBackgrounds = YES;
++      }
+     }
+-  }
+ 
+-  NSString *path = [[NSBundle mainBundle] bundlePath];
+-  NSURL *baseURL = [NSURL fileURLWithPath:path];
+-  dispatch_async(dispatch_get_main_queue(), ^{
++    NSString *path = [[NSBundle mainBundle] bundlePath];
++    NSURL *baseURL = [NSURL fileURLWithPath:path];
+     [self->_webView loadHTMLString:self->_html baseURL:baseURL];
+   });
+-
+-  _resolveBlock = resolve;
+-  _rejectBlock = reject;
+ }
+-- (void)webView:(WKWebView *)webView
+-    didFinishNavigation:(WKNavigation *)navigation {
++
++- (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation {
+   if (webView.isLoading)
+     return;
+ 
+   UIPrintPageRenderer *render = [[UIPrintPageRenderer alloc] init];
+   [render addPrintFormatter:webView.viewPrintFormatter startingAtPageAtIndex:0];
+ 
+-  // Define the printableRect and paperRect
+-  // If the printableRect defines the printable area of the page
+   CGRect paperRect = CGRectMake(0, 0, _PDFSize.width, _PDFSize.height);
+-  CGRect printableRect =
+-      CGRectMake(_paddingLeft, _paddingTop,
+-                 _PDFSize.width - (_paddingLeft + _paddingRight),
+-                 _PDFSize.height - (_paddingBottom + _paddingTop));
++  CGRect printableRect = CGRectMake(_paddingLeft, _paddingTop,
++                                   _PDFSize.width - (_paddingLeft + _paddingRight),
++                                   _PDFSize.height - (_paddingBottom + _paddingTop));
+ 
+   [render setValue:[NSValue valueWithCGRect:paperRect] forKey:@"paperRect"];
+-  [render setValue:[NSValue valueWithCGRect:printableRect]
+-            forKey:@"printableRect"];
++  [render setValue:[NSValue valueWithCGRect:printableRect] forKey:@"printableRect"];
+ 
+-  NSData *pdfData = [render printToPDF:&_numberOfPages
+-                       backgroundColor:_bgColor];
++  NSData *pdfData = [render printToPDF:&_numberOfPages backgroundColor:_bgColor];
++
++  dispatch_async(dispatch_get_main_queue(), ^{
++    self->_containerView = nil;
++    self->_webView = nil;
++  });
+ 
+   if (pdfData) {
+     NSString *pdfBase64 = @"";
+-
+     [pdfData writeToFile:_filePath atomically:YES];
+     if (_base64) {
+       pdfBase64 = [pdfData base64EncodedStringWithOptions:0];
+     }
+-    NSDictionary *data = [NSDictionary
+-        dictionaryWithObjectsAndKeys:pdfBase64, @"base64",
+-                                     [NSString
+-                                         stringWithFormat:@"%ld",
+-                                                          (long)_numberOfPages],
+-                                     @"numberOfPages", _filePath, @"filePath",
+-                                     nil];
+-
++    NSDictionary *data = @{
++      @"base64": pdfBase64,
++      @"numberOfPages": [NSString stringWithFormat:@"%ld", (long)_numberOfPages],
++      @"filePath": _filePath
++    };
+     _resolveBlock(data);
+   } else {
+-    NSError *error;
+-    _rejectBlock(RCTErrorUnspecified, nil,
+-                 RCTErrorWithMessage(error.description));
++    _rejectBlock(@"ERROR", @"Failed to generate PDF", nil);
+   }
+ }
+ 
+-- (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
+-    (const facebook::react::ObjCTurboModule::InitParams &)params {
+-  return std::make_shared<facebook::react::NativeHtmlToPdfSpecJSI>(params);
+-}
+-
+ @end
+diff --git a/node_modules/react-native-html-to-pdf/lib/module/NativeHtmlToPdf.js b/node_modules/react-native-html-to-pdf/lib/module/NativeHtmlToPdf.js
+index 78c5839..a976053 100644
+--- a/node_modules/react-native-html-to-pdf/lib/module/NativeHtmlToPdf.js
++++ b/node_modules/react-native-html-to-pdf/lib/module/NativeHtmlToPdf.js
+@@ -1,5 +1,4 @@
+ "use strict";
+ 
+-import { TurboModuleRegistry } from 'react-native';
+-export default TurboModuleRegistry.getEnforcing('HtmlToPdf');
+-//# sourceMappingURL=NativeHtmlToPdf.js.map
+\ No newline at end of file
++import { NativeModules } from 'react-native';
++export default NativeModules.HtmlToPdf;

@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Print: hide sidebar, show only invoice content */
+@media print {
+  aside {
+    display: none !important;
+  }
+  main {
+    width: 100% !important;
+    max-width: none !important;
+  }
+  body {
+    padding: 0 !important;
+    margin: 0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
