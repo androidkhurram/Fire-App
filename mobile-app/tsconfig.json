@@ -19,6 +19,6 @@
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": ["src/**/*", "App.tsx", "index.js"],
+  "include": ["src/**/*", "App.tsx", "index.js", "env.d.ts"],
   "exclude": ["node_modules", "babel.config.js", "metro.config.js"]
 }
