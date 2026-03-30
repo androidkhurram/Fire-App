@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   ActivityIndicator,
 } from 'react-native';
 import {FormInput} from '../components/FormInput';
@@ -12,6 +11,7 @@ import {DatePickerField} from '../components/DatePickerField';
 import {FormPicker} from '../components/FormPicker';
 import {US_STATES} from '../constants/formOptions';
 import {AppButton} from '../components/AppButton';
+import {KeyboardAwareFormScroll} from '../components/KeyboardAwareFormScroll';
 import {colors} from '../theme/colors';
 import {dataService, Customer} from '../services/dataService';
 import {handleAsyncError, showError} from '../utils/errorHandler';
@@ -103,7 +103,10 @@ export function EditCustomerScreen({
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <KeyboardAwareFormScroll
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      nestedScrollEnabled>
       <Text style={styles.title}>Edit Customer</Text>
       <FormInput
         label="Business Name"
@@ -210,7 +213,7 @@ export function EditCustomerScreen({
           style={styles.btn}
         />
       </View>
-    </ScrollView>
+    </KeyboardAwareFormScroll>
   );
 }
 

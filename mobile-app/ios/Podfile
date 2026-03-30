@@ -51,5 +51,19 @@ target 'FireApp' do
       config[:reactNativePath],
       :mac_catalyst_enabled => false
     )
+
+    # RN codegen runs `/bin/sh -c "$WITH_ENVIRONMENT $SCRIPT_PHASES_SCRIPT"` — unquoted paths break when
+    # the repo lives under folders with spaces or parentheses (e.g. `iCloud Drive (Archive)`).
+    installer.pods_project.targets.each do |target|
+      target.build_phases.each do |phase|
+        next unless phase.respond_to?(:shell_script) && phase.shell_script.is_a?(String)
+        s = phase.shell_script
+        next unless s.include?('/bin/sh -c "$WITH_ENVIRONMENT $SCRIPT_PHASES_SCRIPT"')
+        phase.shell_script = s.gsub(
+          '/bin/sh -c "$WITH_ENVIRONMENT $SCRIPT_PHASES_SCRIPT"',
+          '/bin/sh -c "\"$WITH_ENVIRONMENT\" \"$SCRIPT_PHASES_SCRIPT\""'
+        )
+      end
+    end
   end
 end

@@ -1,5 +1,6 @@
 import React, {useState} from 'react';
-import {View, Text, StyleSheet, ScrollView, TextInput} from 'react-native';
+import {View, Text, StyleSheet, TextInput} from 'react-native';
+import {KeyboardAwareFormScroll} from '../../components/KeyboardAwareFormScroll';
 import {StepProgress, type Step} from '../../components/StepProgress';
 import {AppButton} from '../../components/AppButton';
 import {colors} from '../../theme/colors';
@@ -53,7 +54,7 @@ export function CommentsStep({
       <View style={styles.sidebar}>
         <StepProgress steps={steps} currentStep={currentStep} onStepPress={onStepSelect} />
       </View>
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
+      <KeyboardAwareFormScroll style={styles.content} contentContainerStyle={styles.contentInner}>
         <Text style={styles.title}>Comments</Text>
         <Text style={styles.label}>Comments</Text>
         <TextInput
@@ -70,7 +71,7 @@ export function CommentsStep({
           <AppButton title="Back" onPress={onBack} variant="outline" style={styles.backBtn} />
           <AppButton title="Save" onPress={handleSave} style={styles.continueBtn} />
         </View>
-      </ScrollView>
+      </KeyboardAwareFormScroll>
     </View>
   );
 }

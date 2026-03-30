@@ -361,7 +361,8 @@ function AuthGate(): React.JSX.Element {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerLargeTitle: true,
+        // Large titles let content sit under the nav bar on iPad when the body is not scroll-driven.
+        headerLargeTitle: false,
         headerStyle: {backgroundColor: '#FFFFFF'},
         headerTintColor: '#333333',
         presentation: 'fullScreenModal', // Force full screen on iPad

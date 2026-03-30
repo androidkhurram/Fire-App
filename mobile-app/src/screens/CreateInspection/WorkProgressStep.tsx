@@ -1,5 +1,6 @@
 import React, {useState} from 'react';
-import {View, Text, StyleSheet, ScrollView, TouchableOpacity} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity} from 'react-native';
+import {KeyboardAwareFormScroll} from '../../components/KeyboardAwareFormScroll';
 import {StepProgress, type Step} from '../../components/StepProgress';
 import {AppButton} from '../../components/AppButton';
 import {colors} from '../../theme/colors';
@@ -115,7 +116,7 @@ export function WorkProgressStep({
       <View style={styles.sidebar}>
         <StepProgress steps={steps} currentStep={currentStep} onStepPress={onStepSelect} />
       </View>
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
+      <KeyboardAwareFormScroll style={styles.content} contentContainerStyle={styles.contentInner}>
         <Text style={styles.title}>{title}</Text>
         <View style={styles.checklist}>
           <View style={styles.checklistColumn}>
@@ -137,7 +138,7 @@ export function WorkProgressStep({
           <AppButton title="Back" onPress={onBack} variant="outline" style={styles.backBtn} />
           <AppButton title="Save & Continue" onPress={handleSave} style={styles.continueBtn} />
         </View>
-      </ScrollView>
+      </KeyboardAwareFormScroll>
     </View>
   );
 }

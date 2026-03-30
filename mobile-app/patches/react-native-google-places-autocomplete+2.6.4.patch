@@ -1,0 +1,66 @@
+--- a/node_modules/react-native-google-places-autocomplete/GooglePlacesAutocomplete.js	2026-03-29 18:01:07
++++ b/node_modules/react-native-google-places-autocomplete/GooglePlacesAutocomplete.js
+@@ -13,7 +13,6 @@
+ } from 'react';
+ import {
+   ActivityIndicator,
+-  FlatList,
+   Image,
+   Keyboard,
+   Platform,
+@@ -1022,33 +1021,36 @@
+       (listViewDisplayed === true || (isAutoMode && !listWasDismissed));
+ 
+     if (shouldShowList) {
++      // ScrollView + map: FlatList here nests VirtualizedList inside parent screen ScrollViews
++      // (e.g. address forms), which breaks scrolling / taps on device. Predictions are a short list.
+       return (
+-        <FlatList
++        <ScrollView
+           nativeID='result-list-id'
+-          scrollEnabled={!disableScroll}
+           nestedScrollEnabled={true}
+           keyboardShouldPersistTaps={keyboardShouldPersistTaps}
++          scrollEnabled={!disableScroll}
+           style={[
+             suppressDefaultStyles ? {} : defaultStyles.listView,
+             styles?.listView,
+           ]}
+-          data={dataSource}
+-          keyExtractor={keyExtractor}
+-          extraData={[dataSource, props]}
+-          ItemSeparatorComponent={_renderSeparator}
+-          renderItem={({ item, index }) => _renderRow(item, index)}
+-          ListEmptyComponent={
+-            listLoaderDisplayed
+-              ? props.listLoaderComponent
+-              : stateText.length > minLength && props.listEmptyComponent
+-          }
+-          ListHeaderComponent={
+-            props.renderHeaderComponent &&
+-            props.renderHeaderComponent(stateText)
+-          }
+-          ListFooterComponent={_renderPoweredLogo}
+-          {...restProps}
+-        />
++        >
++          {props.renderHeaderComponent &&
++            props.renderHeaderComponent(stateText)}
++          {dataSource.map((item, index) => (
++            <View key={keyExtractor(item, index)}>
++              {_renderRow(item, index)}
++              {index < dataSource.length - 1 ? (
++                <View
++                  style={[
++                    suppressDefaultStyles ? {} : defaultStyles.separator,
++                    styles?.separator,
++                  ]}
++                />
++              ) : null}
++            </View>
++          ))}
++          {_renderPoweredLogo()}
++        </ScrollView>
+       );
+     }
+ 

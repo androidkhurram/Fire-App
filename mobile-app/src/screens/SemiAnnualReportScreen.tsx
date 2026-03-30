@@ -296,7 +296,11 @@ export function SemiAnnualReportScreen({
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      nestedScrollEnabled>
       <Text style={styles.title}>Inspection Report</Text>
 
       {/* Customer info - FIRST so user sees picker immediately */}

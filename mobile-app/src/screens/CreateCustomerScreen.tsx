@@ -1,10 +1,6 @@
 import React, {useState} from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-} from 'react-native';
+import {View, Text, StyleSheet} from 'react-native';
+import {KeyboardAwareFormScroll} from '../components/KeyboardAwareFormScroll';
 import {FormInput} from '../components/FormInput';
 import {AddressAutocompleteInput} from '../components/AddressAutocompleteInput';
 import {DatePickerField} from '../components/DatePickerField';
@@ -87,7 +83,10 @@ export function CreateCustomerScreen({
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <KeyboardAwareFormScroll
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      nestedScrollEnabled>
       <Text style={styles.title}>Create New Customer</Text>
       <FormInput
         label="Business Name"
@@ -194,7 +193,7 @@ export function CreateCustomerScreen({
           style={styles.btn}
         />
       </View>
-    </ScrollView>
+    </KeyboardAwareFormScroll>
   );
 }
 

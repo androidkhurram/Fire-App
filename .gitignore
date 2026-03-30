@@ -1,10 +1,13 @@
 # Dependencies
 node_modules/
 
-# Environment and secrets (use .env.example templates)
+# Environment and secrets (commit only *.env.example templates with placeholders)
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!**/.env.*.example
+.envrc
+.direnv/
 *.pem
 
 # Next.js

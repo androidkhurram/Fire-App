@@ -1,15 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? 'https://bcgicangqapwetciwlgb.supabase.co';
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjZ2ljYW5ncWFwd2V0Y2l3bGdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1NzgxNzcsImV4cCI6MjA4OTE1NDE3N30.RLPZDd5d3GiLwTQ6W5sfM3L_wFQgG2igl_JeZ5bxr74';
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjZ2ljYW5ncWFwd2V0Y2l3bGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzU3ODE3NywiZXhwIjoyMDg5MTU0MTc3fQ.aF2PhhZaVZMDT4Mb7xvPLz8WMlVx3Ki7QwL2t1P1t-A';
+function supabaseConfig() {
+  const url =
+    process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ||
+    process.env.SUPABASE_URL?.trim() ||
+    '';
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || '';
+  const service = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || '';
+  return { url, anon, service };
+}
 
 export async function POST(request: NextRequest) {
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  const { url: SUPABASE_URL, anon: SUPABASE_ANON_KEY, service: SUPABASE_SERVICE_ROLE_KEY } =
+    supabaseConfig();
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
     return NextResponse.json(
-      { error: 'Server misconfigured: SUPABASE_SERVICE_ROLE_KEY required' },
-      { status: 500 }
+      {
+        error:
+          'Server misconfigured: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY are required',
+      },
+      { status: 500 },
     );
   }
 

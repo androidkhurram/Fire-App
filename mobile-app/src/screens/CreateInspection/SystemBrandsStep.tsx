@@ -3,11 +3,11 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   Modal,
   TextInput,
 } from 'react-native';
+import {KeyboardAwareFormScroll} from '../../components/KeyboardAwareFormScroll';
 import {StepProgress} from '../../components/StepProgress';
 import {FormInput} from '../../components/FormInput';
 import {DatePickerField} from '../../components/DatePickerField';
@@ -130,7 +130,7 @@ export function SystemBrandsStep({
       <View style={styles.sidebar}>
         <StepProgress steps={STEPS} currentStep={5} />
       </View>
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
+      <KeyboardAwareFormScroll style={styles.content} contentContainerStyle={styles.contentInner}>
         <Text style={styles.title}>System Brands</Text>
         <View style={styles.brandGrid}>
           {BRANDS.map(brand => (
@@ -183,7 +183,7 @@ export function SystemBrandsStep({
           <AppButton title="Back" onPress={onBack} variant="outline" style={styles.backBtn} />
           <AppButton title="Save & Continue" onPress={handleSave} style={styles.continueBtn} />
         </View>
-      </ScrollView>
+      </KeyboardAwareFormScroll>
 
       <Modal visible={modalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>

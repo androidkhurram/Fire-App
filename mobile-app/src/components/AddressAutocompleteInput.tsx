@@ -9,7 +9,7 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  FlatList,
+  ScrollView,
   ActivityIndicator,
   Keyboard,
 } from 'react-native';
@@ -110,6 +110,11 @@ function AddressAutocompleteGoogle({
         minLength={2}
         fetchDetails
         onPress={handlePress}
+        onFail={e => {
+          if (__DEV__) {
+            console.warn('[AddressAutocomplete] Google Places:', e);
+          }
+        }}
         query={{
           key: GOOGLE_PLACES_API_KEY,
           language: 'en',
@@ -225,12 +230,14 @@ function AddressAutocompleteLocationIQ({
       )}
       {showList && suggestions.length > 0 && (
         <View style={styles.listView}>
-          <FlatList
+          {/* ScrollView + map avoids VirtualizedList inside parent ScrollView (RN warning / broken taps) */}
+          <ScrollView
+            nestedScrollEnabled
             keyboardShouldPersistTaps="handled"
-            data={suggestions}
-            keyExtractor={(item, i) => item.display_name + i}
-            renderItem={({item}) => (
+            showsVerticalScrollIndicator>
+            {suggestions.map((item, i) => (
               <TouchableOpacity
+                key={item.display_name + String(i)}
                 style={styles.row}
                 onPress={() => handleSelect(item)}
                 activeOpacity={0.7}>
@@ -238,8 +245,8 @@ function AddressAutocompleteLocationIQ({
                   {item.display_name}
                 </Text>
               </TouchableOpacity>
-            )}
-          />
+            ))}
+          </ScrollView>
         </View>
       )}
     </View>
@@ -278,10 +285,11 @@ export function AddressAutocompleteInput(props: AddressAutocompleteInputProps) {
 }
 
 const styles = StyleSheet.create({
+  // No flex:1 here: inside screen ScrollView it collapses height and clips children.
   container: {
     marginBottom: 16,
-    flex: 1,
     minWidth: 0,
+    alignSelf: 'stretch',
   },
   containerRaised: {
     zIndex: 1000,
@@ -304,18 +312,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   googleContainer: {
-    flex: 1,
     alignSelf: 'stretch',
   },
   textInputContainer: {
     flexDirection: 'row',
     alignSelf: 'stretch',
   },
+  // In-flow list: absolute + ScrollView parent clips/hides suggestions on iPad.
   listView: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
     marginTop: 4,
     backgroundColor: colors.white,
     borderWidth: 1,
@@ -327,7 +331,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 8,
-    zIndex: 1001,
   },
   row: {
     padding: 12,

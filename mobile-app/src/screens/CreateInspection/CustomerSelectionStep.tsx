@@ -3,12 +3,15 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TextInput,
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import {useHeaderHeight} from '@react-navigation/elements';
+import {KeyboardAwareFormScroll} from '../../components/KeyboardAwareFormScroll';
 import {StepProgress, type Step} from '../../components/StepProgress';
 import {FormInput} from '../../components/FormInput';
 import {AddressAutocompleteInput} from '../../components/AddressAutocompleteInput';
@@ -55,6 +58,7 @@ export function CustomerSelectionStep({
   showCreateForm: controlledShowCreate,
   setShowCreateForm: controlledSetShowCreate,
 }: CustomerSelectionStepProps) {
+  const headerHeight = useHeaderHeight();
   const [search, setSearch] = useState('');
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -185,7 +189,10 @@ export function CustomerSelectionStep({
         <View style={styles.sidebar}>
           <StepProgress steps={steps} currentStep={currentStep} onStepPress={onStepSelect} />
         </View>
-        <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
+        <KeyboardAwareFormScroll
+          style={styles.content}
+          contentContainerStyle={styles.contentInner}
+          nestedScrollEnabled>
           <Text style={styles.title}>Create Customer</Text>
           <Text style={styles.subtitle}>Enter customer details to continue</Text>
           <TouchableOpacity
@@ -205,7 +212,7 @@ export function CustomerSelectionStep({
             />
             <AppButton title="Create & Continue" onPress={handleCreateCustomer} style={styles.btn} />
           </View>
-        </ScrollView>
+        </KeyboardAwareFormScroll>
       </View>
     );
   }
@@ -215,6 +222,10 @@ export function CustomerSelectionStep({
       <View style={styles.sidebar}>
         <StepProgress steps={steps} currentStep={currentStep} onStepPress={onStepSelect} />
       </View>
+      <KeyboardAvoidingView
+        style={styles.keyboardFlex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={headerHeight}>
       <View style={styles.content}>
         <Text style={styles.title}>Select Customer</Text>
         <Text style={styles.subtitle}>Search for an existing customer or create a new one</Text>
@@ -255,6 +266,7 @@ export function CustomerSelectionStep({
           </>
         )}
       </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -344,6 +356,10 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     backgroundColor: colors.background,
+  },
+  keyboardFlex: {
+    flex: 1,
+    minWidth: 0,
   },
   sidebar: {
     paddingLeft: 24,

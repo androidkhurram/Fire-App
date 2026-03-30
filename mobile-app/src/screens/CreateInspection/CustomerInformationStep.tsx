@@ -1,5 +1,6 @@
 import React, {useState, useEffect} from 'react';
-import {View, Text, StyleSheet, ScrollView} from 'react-native';
+import {View, Text, StyleSheet} from 'react-native';
+import {KeyboardAwareFormScroll} from '../../components/KeyboardAwareFormScroll';
 import {StepProgress, type Step} from '../../components/StepProgress';
 import {FormInput} from '../../components/FormInput';
 import {AddressAutocompleteInput} from '../../components/AddressAutocompleteInput';
@@ -136,7 +137,10 @@ export function CustomerInformationStep({
       <View style={styles.sidebar}>
         <StepProgress steps={steps} currentStep={currentStep} onStepPress={onStepSelect} />
       </View>
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
+      <KeyboardAwareFormScroll
+        style={styles.content}
+        contentContainerStyle={styles.contentInner}
+        nestedScrollEnabled>
         <Text style={styles.title}>Customer Information</Text>
         <FormInput
           label="Business Name"
@@ -247,7 +251,7 @@ export function CustomerInformationStep({
           )}
           <AppButton title="Save & Continue" onPress={handleSave} style={styles.continueBtn} />
         </View>
-      </ScrollView>
+      </KeyboardAwareFormScroll>
     </View>
   );
 }

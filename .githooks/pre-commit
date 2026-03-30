@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Block commits of files that typically hold real secrets (even if someone uses git add -f).
+
+set -euo pipefail
+
+blocked=()
+while IFS= read -r path; do
+  [[ -z "$path" ]] && continue
+  base=$(basename "$path")
+
+  case "$base" in
+    .env | .envrc | .direnv)
+      blocked+=("$path")
+      ;;
+    .env.*)
+      # Allow template-only names; reject everything else (.env.local, .env.production, …)
+      case "$base" in
+        *.example | *.sample | *.template | *.dist)
+          ;;
+        *)
+          blocked+=("$path")
+          ;;
+      esac
+      ;;
+  esac
+done < <(git diff --cached --name-only --diff-filter=ACM)
+
+if ((${#blocked[@]})); then
+  printf '%s\n' '' 'Commit blocked: do not commit environment files that may contain real secrets:' >&2
+  printf '  %s\n' "${blocked[@]}" >&2
+  printf '%s\n' '' 'Keep real values only in untracked files (e.g. admin-portal/.env.local, mobile-app/.env).' \
+    'Commit placeholder templates (*.env.example) only.' \
+    'If keys were ever committed, rotate them in Supabase / Twilio / etc.' >&2
+  exit 1
+fi
+
+exit 0

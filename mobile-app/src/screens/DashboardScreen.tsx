@@ -40,16 +40,18 @@ export function DashboardScreen({
 
   return (
     <View style={[styles.container, isTablet && styles.containerTablet]}>
-      <View style={styles.buttonContainer}>
-        {buttons.map((btn, i) => (
-          <View key={btn.title} style={i > 0 ? styles.buttonSpacing : undefined}>
-            <AppButton title={btn.title} onPress={btn.onPress} />
-          </View>
-        ))}
+      <View style={styles.column}>
+        <View style={styles.buttonContainer}>
+          {buttons.map((btn, i) => (
+            <View key={btn.title} style={i > 0 ? styles.buttonSpacing : undefined}>
+              <AppButton title={btn.title} onPress={btn.onPress} />
+            </View>
+          ))}
+        </View>
+        <TouchableOpacity style={styles.signOut} onPress={onSignOut}>
+          <Text style={styles.signOutText}>Sign Out</Text>
+        </TouchableOpacity>
       </View>
-      <TouchableOpacity style={styles.signOut} onPress={onSignOut}>
-        <Text style={styles.signOutText}>Sign Out</Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -57,25 +59,33 @@ export function DashboardScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.background,
     padding: 24,
+    paddingTop: 20,
   },
   containerTablet: {
     padding: 48,
+    paddingTop: 28,
+  },
+  column: {
+    flex: 1,
+    width: '100%',
+    maxWidth: 400,
+    justifyContent: 'flex-start',
+    paddingTop: 8,
   },
   buttonContainer: {
     width: '100%',
-    maxWidth: 400,
   },
   buttonSpacing: {
     marginTop: 16,
   },
   signOut: {
-    position: 'absolute',
-    bottom: 32,
+    marginTop: 'auto',
+    alignSelf: 'center',
     padding: 12,
+    paddingBottom: 24,
   },
   signOutText: {
     fontSize: 16,

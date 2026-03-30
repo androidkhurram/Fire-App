@@ -381,7 +381,7 @@ export function CreateInspectionScreen({
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
       {loading ? (
         <View style={styles.loading}>
           <ActivityIndicator size="large" color={colors.accent} />
