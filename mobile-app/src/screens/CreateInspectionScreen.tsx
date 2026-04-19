@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useLayoutEffect} from 'react';
+import React, {useState, useEffect, useLayoutEffect, useRef} from 'react';
 import {View, ActivityIndicator, StyleSheet, TouchableOpacity, Text} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -88,6 +88,33 @@ const STEP_CONFIGS: Record<
   },
 };
 
+const SAVING_COPY: Record<
+  'installation' | 'inspection' | 'maintenance',
+  {title: string; subtitle: string; saveIdle: string; saveSaving: string}
+> = {
+  installation: {
+    title: 'Saving installation…',
+    subtitle:
+      'Uploading your installation, data, and any photos. This can take up to a minute — please keep this screen open.',
+    saveIdle: 'Save installation',
+    saveSaving: 'Saving installation…',
+  },
+  inspection: {
+    title: 'Saving inspection…',
+    subtitle:
+      'Uploading your inspection, data, and photos. This can take up to a minute — please keep this screen open.',
+    saveIdle: 'Save inspection',
+    saveSaving: 'Saving inspection…',
+  },
+  maintenance: {
+    title: 'Saving maintenance…',
+    subtitle:
+      'Uploading your maintenance record, data, and photos. This can take up to a minute — please keep this screen open.',
+    saveIdle: 'Save maintenance',
+    saveSaving: 'Saving maintenance…',
+  },
+};
+
 interface CreateInspectionScreenProps {
   existingCustomerId?: string;
   serviceType?: 'installation' | 'inspection' | 'maintenance';
@@ -97,9 +124,12 @@ interface CreateInspectionScreenProps {
 
 /**
  * Create Inspection - Dynamic wizard by service type
- * Installation: Customer → System → Project → Permit → Checks → Setup → Comments
- * Inspection: Customer → System → Work → Checks → Setup → Comments
- * Maintenance: Customer → System → Work → Checks → Setup → Comments
+ * Installation, inspection, and maintenance all use this screen; final submit uses the same
+ * saving overlay, locks, and CreateInspectionWrapper (photos + report where applicable).
+ *
+ * Installation: Customer → System → Project → Permit → Checks → Setup → Payment → Comments
+ * Inspection: Customer → System → Work → Photos → … → Comments
+ * Maintenance: Customer → System → Work → Photos → … → Comments
  */
 export function CreateInspectionScreen({
   existingCustomerId,
@@ -111,8 +141,18 @@ export function CreateInspectionScreen({
   const [data, setData] = useState<InspectionWizardData>({});
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>(existingCustomerId);
   const [loading, setLoading] = useState(Boolean(existingCustomerId));
+  const [saving, setSaving] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(serviceType === 'installation');
   const navigation = useNavigation();
+  const mountedRef = useRef(true);
+  const submitLockRef = useRef(false);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const config = STEP_CONFIGS[serviceType];
   const stepKeys = config.keys;
@@ -126,8 +166,8 @@ export function CreateInspectionScreen({
         headerRight: () => (
           <TouchableOpacity
             onPress={() => setShowCreateForm(!showCreateForm)}
-            style={{marginRight: 16}}
-            hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+            style={{marginRight: 16, paddingVertical: 8}}
+            hitSlop={{top: 12, bottom: 12, left: 10, right: 10}}>
             <Text style={{color: colors.accent, fontSize: 16, fontWeight: '600'}}>
               {showCreateForm ? 'Search Existing' : '+ Create New Customer'}
             </Text>
@@ -213,11 +253,21 @@ export function CreateInspectionScreen({
     }
   };
 
-  const handleComplete = (finalData: CommentsInfo) => {
-    const fullData: InspectionWizardData = {...data, comments: finalData};
+  const handleComplete = async (finalData: CommentsInfo) => {
+    if (submitLockRef.current || saving) return;
     const cid = selectedCustomerId ?? existingCustomerId;
     if (!cid) return;
-    void onComplete?.(fullData, cid);
+    submitLockRef.current = true;
+    setSaving(true);
+    const fullData: InspectionWizardData = {...data, comments: finalData};
+    try {
+      await onComplete?.(fullData, cid);
+    } finally {
+      submitLockRef.current = false;
+      if (mountedRef.current) {
+        setSaving(false);
+      }
+    }
   };
 
   const renderStepFor = (key: StepKey, idx: number) => {
@@ -373,6 +423,9 @@ export function CreateInspectionScreen({
           initialData={data.comments}
           onBack={() => setStep(idx - 1)}
           onSave={handleComplete}
+          saving={saving}
+          saveIdleTitle={SAVING_COPY[serviceType].saveIdle}
+          saveSavingTitle={SAVING_COPY[serviceType].saveSaving}
           {...common}
         />
       );
@@ -402,6 +455,15 @@ export function CreateInspectionScreen({
           ))}
         </View>
       )}
+      {saving ? (
+        <View style={styles.savingOverlay} pointerEvents="auto">
+          <View style={styles.savingCard}>
+            <ActivityIndicator size="large" color={colors.accent} />
+            <Text style={styles.savingTitle}>{SAVING_COPY[serviceType].title}</Text>
+            <Text style={styles.savingSub}>{SAVING_COPY[serviceType].subtitle}</Text>
+          </View>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -410,6 +472,33 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
+    position: 'relative',
+  },
+  savingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+    padding: 24,
+  },
+  savingCard: {
+    maxWidth: 320,
+    alignItems: 'center',
+  },
+  savingTitle: {
+    marginTop: 16,
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.darkGray,
+    textAlign: 'center',
+  },
+  savingSub: {
+    marginTop: 10,
+    fontSize: 14,
+    color: colors.gray,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   loading: {
     flex: 1,

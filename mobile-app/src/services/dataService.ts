@@ -2,14 +2,16 @@
  * Unified data service - uses Supabase when configured, else demo store
  */
 import {SUPABASE_URL, SUPABASE_ANON_KEY} from '../config';
+import {supabase} from '../supabase/client';
+import {demoStore, DemoCustomer, DemoInspection, DemoInvoice} from './demoStore';
 
-function addMonths(dateStr: string, months: number): string {
-  const d = new Date(dateStr);
+/** ISO date string `YYYY-MM-DD` plus calendar months (used for next service date, etc.). */
+export function addMonths(dateStr: string, months: number): string {
+  const d = new Date(`${dateStr}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return dateStr;
   d.setMonth(d.getMonth() + months);
   return d.toISOString().split('T')[0]!;
 }
-import {supabase} from '../supabase/client';
-import {demoStore, DemoCustomer, DemoInspection, DemoInvoice} from './demoStore';
 
 export const useSupabase = Boolean(
   SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_URL.length > 10,
@@ -47,8 +49,15 @@ export interface Invoice {
   payment_method?: string;
   payment_status?: string;
   pdf_url?: string;
+  /** PNG data URL captured at invoice creation for PDF / records */
+  customer_signature_data_url?: string | null;
   created_at?: string;
 }
+
+/** Row for invoice lists (joins customer name when available). */
+export type InvoiceListRow = Invoice & {
+  customer_business_name?: string | null;
+};
 
 export interface Inspection {
   id: string;
@@ -374,6 +383,7 @@ export const dataService = {
     comments?: unknown;
     paymentInfo?: unknown;
     dynamicFieldValues?: Record<string, string>;
+    photos?: Array<{uri: string; type?: string; name?: string}>;
   }): Promise<Inspection> {
     const sysInfo = payload.systemInfo as {
       systemBrand?: string | string[];
@@ -650,13 +660,12 @@ export const dataService = {
     if (!useSupabase) return null;
     try {
       const response = await fetch(file.uri);
-      const blob = await response.blob();
-      const {data, error} = await supabase.storage
-        .from(bucket)
-        .upload(path, blob, {
-          upsert: true,
-          contentType: file.type ?? 'application/pdf',
-        });
+      if (!response.ok) return null;
+      const buf = await response.arrayBuffer();
+      const {data, error} = await supabase.storage.from(bucket).upload(path, buf, {
+        upsert: true,
+        contentType: file.type ?? 'application/octet-stream',
+      });
       if (error) return null;
       const {data: urlData} = supabase.storage.from(bucket).getPublicUrl(data.path);
       return urlData.publicUrl;
@@ -705,12 +714,26 @@ export const dataService = {
     });
     if (!url) return null;
     const {data: {user}} = await supabase.auth.getUser();
-    await supabase.from('photos').insert({
+    const {error: insertError} = await supabase.from('photos').insert({
       inspection_id: inspectionId,
       photo_url: url,
       uploaded_by: user?.id ?? null,
     });
+    if (insertError) {
+      if (__DEV__) {
+        console.warn('[dataService] photos.insert failed', insertError.message);
+      }
+      return null;
+    }
     return url;
+  },
+
+  async appendInspectionPhotoLocal(
+    inspectionId: string,
+    file: {uri: string; type?: string; name?: string},
+  ): Promise<void> {
+    if (useSupabase) return;
+    await demoStore.appendInspectionPhoto(inspectionId, file);
   },
 
   async updateInspectionReportUrl(inspectionId: string, reportUrl: string): Promise<void> {
@@ -735,7 +758,11 @@ export const dataService = {
   },
 
   async getInspectionPhotos(inspectionId: string): Promise<Array<{photo_url: string}>> {
-    if (!useSupabase) return [];
+    if (!useSupabase) {
+      const inv = await demoStore.getInspection(inspectionId);
+      const list = inv?.photos ?? [];
+      return list.filter(p => p.uri).map(p => ({photo_url: p.uri}));
+    }
     const {data, error} = await supabase
       .from('photos')
       .select('photo_url')
@@ -770,6 +797,31 @@ export const dataService = {
     return demoStore.getInvoiceLineItems(invoiceId);
   },
 
+  async getInvoices(): Promise<InvoiceListRow[]> {
+    if (useSupabase) {
+      const {data, error} = await supabase
+        .from('invoices')
+        .select('*, customers ( business_name )')
+        .order('created_at', {ascending: false})
+        .limit(500);
+      if (error || !data) return [];
+      type Row = Invoice & {customers?: {business_name?: string} | null};
+      return (data as Row[]).map(row => {
+        const {customers: cust, ...inv} = row;
+        return {
+          ...(inv as Invoice),
+          customer_business_name: cust?.business_name ?? null,
+        };
+      });
+    }
+    const [invoices, customers] = await Promise.all([demoStore.getInvoices(), demoStore.getCustomers()]);
+    const nameById = new Map(customers.map(c => [c.id, c.business_name]));
+    return invoices.map(i => ({
+      ...mapDemoInvoice(i),
+      customer_business_name: i.customer_id ? nameById.get(i.customer_id) ?? null : null,
+    }));
+  },
+
   async getInvoice(id: string): Promise<Invoice | null> {
     if (useSupabase) {
       const {data, error} = await supabase
@@ -786,7 +838,7 @@ export const dataService = {
 
   async updateInvoice(
     id: string,
-    updates: {pdf_url?: string},
+    updates: {pdf_url?: string; customer_signature_data_url?: string | null},
   ): Promise<void> {
     if (useSupabase) {
       const {error} = await supabase
@@ -810,6 +862,7 @@ export const dataService = {
     payment_method?: string;
     payment_status?: string;
     pdf_url?: string;
+    customer_signature_data_url?: string | null;
     line_items?: InvoiceLineItem[];
   }): Promise<Invoice> {
     if (useSupabase) {
@@ -827,6 +880,7 @@ export const dataService = {
           payment_method: payload.payment_method,
           payment_status: payload.payment_status,
           pdf_url: payload.pdf_url,
+          customer_signature_data_url: payload.customer_signature_data_url ?? null,
         })
         .select()
         .single();
@@ -846,7 +900,11 @@ export const dataService = {
       }
       return invoice;
     }
-    const created = await demoStore.createInvoice(payload);
+    const {customer_signature_data_url: sigUrl, ...invoiceRest} = payload;
+    const created = await demoStore.createInvoice({
+      ...invoiceRest,
+      customer_signature_data_url: sigUrl ?? undefined,
+    });
     return mapDemoInvoice(created);
   },
 
@@ -959,6 +1017,7 @@ function mapDemoInvoice(i: DemoInvoice): Invoice {
     id: i.id,
     customer_id: i.customer_id,
     project_id: i.project_id,
+    inspection_id: i.inspection_id,
     service_type: i.service_type,
     invoice_date: i.invoice_date,
     amount: i.amount,
@@ -967,6 +1026,7 @@ function mapDemoInvoice(i: DemoInvoice): Invoice {
     payment_method: i.payment_method,
     payment_status: i.payment_status,
     pdf_url: i.pdf_url,
+    customer_signature_data_url: i.customer_signature_data_url,
     created_at: i.created_at,
   };
 }

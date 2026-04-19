@@ -23,7 +23,11 @@ export interface CommentsInfo {
 interface CommentsStepProps {
   initialData?: Partial<CommentsInfo>;
   onBack: () => void;
-  onSave: (data: CommentsInfo) => void;
+  onSave: (data: CommentsInfo) => void | Promise<void>;
+  /** Final submit in progress — blocks double-tap and shows progress on Save */
+  saving?: boolean;
+  saveIdleTitle?: string;
+  saveSavingTitle?: string;
   steps?: Step[];
   currentStep?: number;
   onStepSelect?: (index: number) => void;
@@ -37,6 +41,9 @@ export function CommentsStep({
   initialData,
   onBack,
   onSave,
+  saving = false,
+  saveIdleTitle = 'Save',
+  saveSavingTitle = 'Saving…',
   steps = WIZARD_STEPS,
   currentStep = 7,
   onStepSelect,
@@ -46,7 +53,8 @@ export function CommentsStep({
   );
 
   const handleSave = () => {
-    onSave({commentText});
+    if (saving) return;
+    void Promise.resolve(onSave({commentText}));
   };
 
   return (
@@ -66,10 +74,22 @@ export function CommentsStep({
           multiline
           numberOfLines={6}
           textAlignVertical="top"
+          editable={!saving}
         />
         <View style={styles.buttons}>
-          <AppButton title="Back" onPress={onBack} variant="outline" style={styles.backBtn} />
-          <AppButton title="Save" onPress={handleSave} style={styles.continueBtn} />
+          <AppButton
+            title="Back"
+            onPress={onBack}
+            variant="outline"
+            style={styles.backBtn}
+            disabled={saving}
+          />
+          <AppButton
+            title={saving ? saveSavingTitle : saveIdleTitle}
+            onPress={handleSave}
+            style={styles.continueBtn}
+            loading={saving}
+          />
         </View>
       </KeyboardAwareFormScroll>
     </View>

@@ -1,5 +1,7 @@
 import React, {useState, useEffect} from 'react';
-import {View, Text, StyleSheet, ScrollView, TouchableOpacity} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity} from 'react-native';
+import {KeyboardAwareFormScroll} from '../../components/KeyboardAwareFormScroll';
+import {NumericKeyboardAccessory} from '../../components/NumericKeyboardAccessory';
 import {StepProgress, type Step} from '../../components/StepProgress';
 import {FormInput} from '../../components/FormInput';
 import {AppButton} from '../../components/AppButton';
@@ -85,7 +87,8 @@ export function PaymentStep({
       <View style={styles.sidebar}>
         <StepProgress steps={steps} currentStep={currentStep} onStepPress={onStepSelect} />
       </View>
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
+      <KeyboardAwareFormScroll style={styles.content} contentContainerStyle={styles.contentInner}>
+        <NumericKeyboardAccessory nativeID="payment-decimal-pad" />
         <Text style={styles.title}>Term of Payment</Text>
         <Text style={styles.subtitle}>
           Payment mode is for report purpose only. Credit card does not integrate with card processing.
@@ -119,26 +122,22 @@ export function PaymentStep({
           value={totalAmount}
           onChangeText={handleTotalChange}
           keyboardType="decimal-pad"
+          inputAccessoryViewID="payment-decimal-pad"
         />
-        <View style={styles.row}>
-          <FormInput
-            label="Advance Amount"
-            placeholder="Enter advance amount"
-            value={advanceAmount}
-            onChangeText={handleAdvanceChange}
-            keyboardType="decimal-pad"
-            containerStyle={styles.halfInput}
-          />
-          <FormInput
-            label="Balance Amount"
-            placeholder="Auto-calculated"
-            value={balanceAmount}
-            onChangeText={setBalanceAmount}
-            keyboardType="decimal-pad"
-            containerStyle={styles.halfInput}
-            editable={true}
-          />
-        </View>
+        <FormInput
+          label="Advance Amount"
+          placeholder="Enter advance amount"
+          value={advanceAmount}
+          onChangeText={handleAdvanceChange}
+          keyboardType="decimal-pad"
+          inputAccessoryViewID="payment-decimal-pad"
+        />
+        <FormInput
+          label="Balance Amount"
+          placeholder="Auto-calculated"
+          value={balanceAmount}
+          readOnly
+        />
 
         <View style={styles.buttons}>
           <AppButton title="Back" onPress={onBack} variant="outline" style={styles.backBtn} />
@@ -148,7 +147,7 @@ export function PaymentStep({
             style={styles.continueBtn}
           />
         </View>
-      </ScrollView>
+      </KeyboardAwareFormScroll>
     </View>
   );
 }
@@ -160,16 +159,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   sidebar: {
-    paddingLeft: 24,
+    paddingLeft: 16,
     borderRightWidth: 1,
     borderRightColor: colors.border,
   },
   content: {
     flex: 1,
-    padding: 24,
+    minWidth: 0,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    paddingRight: 24,
   },
   contentInner: {
-    paddingBottom: 48,
+    paddingBottom: 120,
+    width: '100%',
   },
   title: {
     fontSize: 24,
@@ -228,13 +231,6 @@ const styles = StyleSheet.create({
   radioLabel: {
     fontSize: 16,
     color: colors.darkGray,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  halfInput: {
-    flex: 1,
   },
   buttons: {
     flexDirection: 'row',

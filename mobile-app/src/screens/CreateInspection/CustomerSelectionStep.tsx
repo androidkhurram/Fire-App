@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import {useHeaderHeight} from '@react-navigation/elements';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {KeyboardAwareFormScroll} from '../../components/KeyboardAwareFormScroll';
 import {StepProgress, type Step} from '../../components/StepProgress';
 import {FormInput} from '../../components/FormInput';
@@ -59,6 +60,7 @@ export function CustomerSelectionStep({
   setShowCreateForm: controlledSetShowCreate,
 }: CustomerSelectionStepProps) {
   const headerHeight = useHeaderHeight();
+  const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -192,7 +194,8 @@ export function CustomerSelectionStep({
         <KeyboardAwareFormScroll
           style={styles.content}
           contentContainerStyle={styles.contentInner}
-          nestedScrollEnabled>
+          nestedScrollEnabled
+          keyboardShouldPersistTaps="always">
           <Text style={styles.title}>Create Customer</Text>
           <Text style={styles.subtitle}>Enter customer details to continue</Text>
           <TouchableOpacity
@@ -224,8 +227,8 @@ export function CustomerSelectionStep({
       </View>
       <KeyboardAvoidingView
         style={styles.keyboardFlex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={headerHeight}>
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        keyboardVerticalOffset={headerHeight + insets.top}>
       <View style={styles.content}>
         <Text style={styles.title}>Select Customer</Text>
         <Text style={styles.subtitle}>Search for an existing customer or create a new one</Text>
@@ -244,6 +247,8 @@ export function CustomerSelectionStep({
               data={filteredCustomers}
               keyExtractor={c => c.id}
               style={styles.list}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
               ListEmptyComponent={
                 <View style={styles.empty}>
                   <Text style={styles.emptyText}>No customers found</Text>

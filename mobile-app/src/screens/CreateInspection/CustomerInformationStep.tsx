@@ -140,7 +140,8 @@ export function CustomerInformationStep({
       <KeyboardAwareFormScroll
         style={styles.content}
         contentContainerStyle={styles.contentInner}
-        nestedScrollEnabled>
+        nestedScrollEnabled
+        keyboardShouldPersistTaps="always">
         <Text style={styles.title}>Customer Information</Text>
         <FormInput
           label="Business Name"
@@ -263,16 +264,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   sidebar: {
-    paddingLeft: 24,
+    paddingLeft: 16,
     borderRightWidth: 1,
     borderRightColor: colors.border,
   },
   content: {
     flex: 1,
-    padding: 24,
+    minWidth: 0,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    paddingRight: 24,
   },
   contentInner: {
     paddingBottom: 48,
+    width: '100%',
   },
   title: {
     fontSize: 24,

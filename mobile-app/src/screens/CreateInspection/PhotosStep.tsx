@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import {StepProgress, type Step} from '../../components/StepProgress';
+import {KeyboardAwareFormScroll} from '../../components/KeyboardAwareFormScroll';
 import {AppButton} from '../../components/AppButton';
 import {colors} from '../../theme/colors';
 import {handleAsyncError} from '../../utils/errorHandler';
@@ -76,7 +77,7 @@ export function PhotosStep({
       <View style={styles.sidebar}>
         <StepProgress steps={steps} currentStep={currentStep} onStepPress={onStepSelect} />
       </View>
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
+      <KeyboardAwareFormScroll style={styles.content} contentContainerStyle={styles.contentInner}>
         <Text style={styles.title}>Photos</Text>
         <Text style={styles.subtitle}>
           Capture photos during the inspection to document the system condition
@@ -139,7 +140,7 @@ export function PhotosStep({
             style={styles.continueBtn}
           />
         </View>
-      </ScrollView>
+      </KeyboardAwareFormScroll>
     </View>
   );
 }

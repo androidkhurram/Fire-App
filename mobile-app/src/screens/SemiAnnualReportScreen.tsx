@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   ActivityIndicator,
   TextInput,
@@ -11,6 +10,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
+import {KeyboardAwareFormScroll} from '../components/KeyboardAwareFormScroll';
 import {FormInput} from '../components/FormInput';
 import {DatePickerField} from '../components/DatePickerField';
 import {AddressAutocompleteInput} from '../components/AddressAutocompleteInput';
@@ -112,6 +112,19 @@ export function SemiAnnualReportScreen({
   useEffect(() => {
     if (!showCreateCustomer) loadCustomers();
   }, [showCreateCustomer, loadCustomers]);
+
+  useEffect(() => {
+    if (loading) return;
+    let cancelled = false;
+    dataService.getSession().then(session => {
+      if (cancelled || !session) return;
+      const name = session.displayName?.trim() || session.email;
+      setData(prev => ({...prev, inspectorName: name}));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [loading]);
 
   const searchLower = customerSearch.toLowerCase().trim();
   const searchDigits = customerSearch.replace(/\D/g, '');
@@ -296,11 +309,11 @@ export function SemiAnnualReportScreen({
   }
 
   return (
-    <ScrollView
+    <KeyboardAwareFormScroll
       style={styles.container}
       contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
-      nestedScrollEnabled>
+      nestedScrollEnabled
+      keyboardShouldPersistTaps="always">
       <Text style={styles.title}>Inspection Report</Text>
 
       {/* Customer info - FIRST so user sees picker immediately */}
@@ -693,10 +706,11 @@ export function SemiAnnualReportScreen({
         <Text style={styles.sectionTitle}>Acknowledgement of Inspection</Text>
         <FormInput
           label="Inspector Name"
-          placeholder=""
-          value={data.inspectorName ?? ''}
-          onChangeText={v => setData(prev => ({...prev, inspectorName: v}))}
+          placeholder="—"
+          value={data.inspectorName?.trim() ? data.inspectorName : '—'}
+          readOnly
         />
+        <Text style={styles.readOnlyHint}>From your signed-in account</Text>
         <FormInput
           label="Texas License Number (FEL-...)"
           placeholder="FEL-"
@@ -751,7 +765,7 @@ export function SemiAnnualReportScreen({
           style={styles.btn}
         />
       </View>
-    </ScrollView>
+    </KeyboardAwareFormScroll>
   );
 }
 
@@ -786,6 +800,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.darkGray,
+    marginBottom: 12,
+  },
+  readOnlyHint: {
+    fontSize: 12,
+    color: colors.gray,
+    marginTop: -8,
     marginBottom: 12,
   },
   reportTypeRow: {

@@ -1,7 +1,9 @@
 /**
- * App config — loaded via Babel from `admin-portal/.env.local` when that file exists
- * (same keys as the Next.js admin: NEXT_PUBLIC_SUPABASE_*), otherwise `mobile-app/.env`.
- * Restart Metro after env changes.
+ * App config — Babel merges `admin-portal/.env.local` then `mobile-app/.env` (mobile wins
+ * on duplicate keys) into `.env.babel.merged` (auto-generated; do not edit) so Supabase
+ * can live in admin and `GOOGLE_PLACES_API_KEY` / `LOCATIONIQ_API_KEY` in mobile.
+ * Non-empty values in `mobile-app/.env` override the same keys from admin — set the Places
+ * key in `mobile-app/.env` (or clear it there to use admin only). Restart Metro after env changes.
  *
  * DEMO MODE: Leave Supabase vars empty; the app uses local storage.
  *

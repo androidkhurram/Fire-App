@@ -1,8 +1,7 @@
 /**
- * Address autocomplete - LocationIQ (primary, free) or Google Places (fallback)
- * Set LOCATIONIQ_API_KEY for free address autocomplete. Set GOOGLE_PLACES_API_KEY as fallback.
+ * Address autocomplete — Google Places when GOOGLE_PLACES_API_KEY is set, else LocationIQ, else plain field.
  */
-import React, {useState, useCallback, useRef} from 'react';
+import React, {useState, useCallback, useRef, useEffect} from 'react';
 import {
   View,
   Text,
@@ -12,6 +11,8 @@ import {
   ScrollView,
   ActivityIndicator,
   Keyboard,
+  Platform,
+  useWindowDimensions,
 } from 'react-native';
 import {GooglePlacesAutocomplete} from 'react-native-google-places-autocomplete';
 import {
@@ -68,6 +69,33 @@ function parseLocationIqToResult(item: LocationIqResult): AddressResult {
   };
 }
 
+function useKeyboardHeight(): number {
+  const [h, setH] = useState(0);
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const onShow = (e: {endCoordinates?: {height: number}}) =>
+      setH(e.endCoordinates?.height ?? 0);
+    const onHide = () => setH(0);
+    const s1 = Keyboard.addListener(showEvt, onShow);
+    const s2 = Keyboard.addListener(hideEvt, onHide);
+    return () => {
+      s1.remove();
+      s2.remove();
+    };
+  }, []);
+  return h;
+}
+
+/** Keep predictions visible above the keyboard (in-flow list below the field). */
+function suggestionListMaxHeight(windowHeight: number, keyboardHeight: number): number {
+  const reserved = Platform.OS === 'ios' ? 260 : 230;
+  if (keyboardHeight <= 0) {
+    return 220;
+  }
+  return Math.max(110, Math.min(340, windowHeight - keyboardHeight - reserved));
+}
+
 function AddressAutocompleteGoogle({
   value,
   onChange,
@@ -76,6 +104,18 @@ function AddressAutocompleteGoogle({
   label,
 }: AddressAutocompleteInputProps) {
   const ref = useRef<GooglePlacesAutocomplete>(null);
+  const {height: windowHeight} = useWindowDimensions();
+  const keyboardHeight = useKeyboardHeight();
+  const listMaxHeight = suggestionListMaxHeight(windowHeight, keyboardHeight);
+
+  // Do not pass `value` into textInputProps: it overrides the library's stateText
+  // after {...userProps} and breaks debounced Places requests + suggestion list.
+  useEffect(() => {
+    const current = ref.current?.getAddressText?.() ?? '';
+    if (value !== current) {
+      ref.current?.setAddressText(value);
+    }
+  }, [value]);
 
   const handlePress = (data: {description: string}, details: {address_components?: Array<{long_name: string; short_name: string; types: string[]}>} | null) => {
     const addr = details?.address_components;
@@ -111,31 +151,30 @@ function AddressAutocompleteGoogle({
         fetchDetails
         onPress={handlePress}
         onFail={e => {
-          if (__DEV__) {
-            console.warn('[AddressAutocomplete] Google Places:', e);
-          }
+          console.warn('[AddressAutocomplete] Google Places:', e);
         }}
         query={{
           key: GOOGLE_PLACES_API_KEY,
           language: 'en',
-          types: 'address',
+          // types: 'address' is strict — often returns no partial matches; omit for better UX
           components: 'country:us',
         }}
         textInputProps={{
-          value,
           onChangeText: onChange,
           style: styles.input,
           placeholderTextColor: colors.gray,
+          keyboardType: 'default',
         }}
         styles={{
           container: styles.googleContainer,
           textInputContainer: styles.textInputContainer,
           textInput: styles.input,
-          listView: styles.listView,
+          listView: [styles.listView, {maxHeight: listMaxHeight}],
           row: styles.row,
           description: styles.description,
           poweredContainer: styles.poweredContainer,
         }}
+        keyboardShouldPersistTaps="always"
         enablePoweredByContainer={false}
       />
     </View>
@@ -153,6 +192,19 @@ function AddressAutocompleteLocationIQ({
   const [loading, setLoading] = useState(false);
   const [showList, setShowList] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const blurHideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const {height: windowHeight} = useWindowDimensions();
+  const keyboardHeight = useKeyboardHeight();
+  const listMaxHeight = suggestionListMaxHeight(windowHeight, keyboardHeight);
+
+  const cancelBlurHide = () => {
+    if (blurHideRef.current) {
+      clearTimeout(blurHideRef.current);
+      blurHideRef.current = null;
+    }
+  };
+
+  useEffect(() => () => cancelBlurHide(), []);
 
   const fetchSuggestions = useCallback(async (q: string) => {
     if (!q || q.length < 2) {
@@ -203,6 +255,7 @@ function AddressAutocompleteLocationIQ({
   };
 
   const handleSelect = (item: LocationIqResult) => {
+    cancelBlurHide();
     const result = parseLocationIqToResult(item);
     onChange(result.address);
     onAddressSelect?.(result);
@@ -218,8 +271,15 @@ function AddressAutocompleteLocationIQ({
         style={styles.input}
         value={value}
         onChangeText={handleChangeText}
-        onFocus={() => suggestions.length > 0 && setShowList(true)}
-        onBlur={() => setTimeout(() => setShowList(false), 200)}
+        keyboardType="default"
+        onFocus={() => {
+          cancelBlurHide();
+          if (suggestions.length > 0) setShowList(true);
+        }}
+        onBlur={() => {
+          cancelBlurHide();
+          blurHideRef.current = setTimeout(() => setShowList(false), 500);
+        }}
         placeholder={placeholder ?? 'Search address...'}
         placeholderTextColor={colors.gray}
       />
@@ -229,11 +289,12 @@ function AddressAutocompleteLocationIQ({
         </View>
       )}
       {showList && suggestions.length > 0 && (
-        <View style={styles.listView}>
+        <View style={[styles.listView, {maxHeight: listMaxHeight}]}>
           {/* ScrollView + map avoids VirtualizedList inside parent ScrollView (RN warning / broken taps) */}
           <ScrollView
             nestedScrollEnabled
-            keyboardShouldPersistTaps="handled"
+            keyboardShouldPersistTaps="always"
+            keyboardDismissMode="none"
             showsVerticalScrollIndicator>
             {suggestions.map((item, i) => (
               <TouchableOpacity
@@ -290,6 +351,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     minWidth: 0,
     alignSelf: 'stretch',
+    width: '100%',
   },
   containerRaised: {
     zIndex: 1000,
@@ -311,8 +373,11 @@ const styles = StyleSheet.create({
     color: colors.darkGray,
     backgroundColor: colors.white,
   },
+  // Override library default flex:1 — in ScrollView + flex row, that keeps intrinsic narrow width
   googleContainer: {
     alignSelf: 'stretch',
+    width: '100%',
+    flex: 0,
   },
   textInputContainer: {
     flexDirection: 'row',
@@ -325,7 +390,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
-    maxHeight: 220,
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.2,

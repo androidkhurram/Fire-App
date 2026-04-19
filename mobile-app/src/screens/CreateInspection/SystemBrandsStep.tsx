@@ -5,14 +5,17 @@ import {
   StyleSheet,
   TouchableOpacity,
   Modal,
-  TextInput,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
 } from 'react-native';
 import {KeyboardAwareFormScroll} from '../../components/KeyboardAwareFormScroll';
+import {NumericKeyboardAccessory} from '../../components/NumericKeyboardAccessory';
 import {StepProgress} from '../../components/StepProgress';
 import {FormInput} from '../../components/FormInput';
-import {DatePickerField} from '../../components/DatePickerField';
 import {AppButton} from '../../components/AppButton';
 import {colors} from '../../theme/colors';
+import {MODAL_LANDSCAPE_ORIENTATIONS} from '../../constants/modalOrientation';
 
 const STEPS = [
   {id: 1, title: 'Customer Information'},
@@ -38,7 +41,6 @@ export interface SystemBrandItem {
   brand: string;
   model?: string;
   quantity?: number;
-  dateOfManufacture?: string;
 }
 
 export interface SystemBrandsInfo {
@@ -68,10 +70,8 @@ export function SystemBrandsStep({
   const [modalVisible, setModalVisible] = useState(false);
   const [addNewVisible, setAddNewVisible] = useState(false);
   const [modalQuantity, setModalQuantity] = useState('');
-  const [modalDate, setModalDate] = useState('');
   const [addCylinder, setAddCylinder] = useState('');
   const [addQuantity, setAddQuantity] = useState('');
-  const [addDate, setAddDate] = useState('');
 
   const models = selectedBrand ? MODELS[selectedBrand] ?? [] : [];
 
@@ -81,7 +81,6 @@ export function SystemBrandsStep({
       i => i.brand === selectedBrand && i.model === model,
     );
     setModalQuantity(existing?.quantity?.toString() ?? '');
-    setModalDate(existing?.dateOfManufacture ?? '');
     setModalVisible(true);
   };
 
@@ -94,14 +93,12 @@ export function SystemBrandsStep({
         brand: selectedBrand,
         model: selectedModel,
         quantity: parseInt(modalQuantity, 10) || 0,
-        dateOfManufacture: modalDate,
       });
       setItems(newItems);
     }
     setModalVisible(false);
     setSelectedModel(null);
     setModalQuantity('');
-    setModalDate('');
   };
 
   const saveAddNew = () => {
@@ -111,14 +108,12 @@ export function SystemBrandsStep({
         {
           brand: addCylinder,
           quantity: parseInt(addQuantity, 10) || 0,
-          dateOfManufacture: addDate,
         },
       ]);
     }
     setAddNewVisible(false);
     setAddCylinder('');
     setAddQuantity('');
-    setAddDate('');
   };
 
   const handleSave = () => {
@@ -185,68 +180,92 @@ export function SystemBrandsStep({
         </View>
       </KeyboardAwareFormScroll>
 
-      <Modal visible={modalVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <TouchableOpacity
-              style={styles.modalClose}
-              onPress={() => setModalVisible(false)}>
-              <Text style={styles.modalCloseText}>✕</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>{selectedModel}</Text>
-            <FormInput
-              label="Quantity"
-              placeholder="Enter quantity"
-              value={modalQuantity}
-              onChangeText={setModalQuantity}
-              keyboardType="numeric"
-            />
-            <DatePickerField
-              label="Date of Manufacture"
-              value={modalDate}
-              onChange={setModalDate}
-            />
-            <TouchableOpacity style={styles.modalOkBtn} onPress={saveModelModal}>
-              <Text style={styles.modalOkText}>OK</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="fade"
+        supportedOrientations={[...MODAL_LANDSCAPE_ORIENTATIONS]}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 32 : 0}>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            contentContainerStyle={styles.modalScrollContent}
+            showsVerticalScrollIndicator={false}>
+            <View style={styles.modalContent}>
+              <NumericKeyboardAccessory nativeID="brands-modal-qty" />
+              <TouchableOpacity
+                style={styles.modalClose}
+                onPress={() => setModalVisible(false)}>
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>{selectedModel}</Text>
+              <FormInput
+                label="Quantity"
+                placeholder="Enter quantity"
+                value={modalQuantity}
+                onChangeText={setModalQuantity}
+                keyboardType="numeric"
+                inputAccessoryViewID="brands-modal-qty"
+                returnKeyType="done"
+                blurOnSubmit
+              />
+              <TouchableOpacity style={styles.modalOkBtn} onPress={saveModelModal}>
+                <Text style={styles.modalOkText}>OK</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
 
-      <Modal visible={addNewVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <TouchableOpacity
-              style={styles.modalClose}
-              onPress={() => setAddNewVisible(false)}>
-              <Text style={styles.modalCloseText}>✕</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Add New</Text>
-            <FormInput
-              label="Cylinder"
-              placeholder="Enter cylinder name"
-              value={addCylinder}
-              onChangeText={setAddCylinder}
-            />
-            <FormInput
-              label="Quantity"
-              placeholder="Enter quantity"
-              value={addQuantity}
-              onChangeText={setAddQuantity}
-              keyboardType="numeric"
-            />
-            <DatePickerField
-              label="Date of Manufacture"
-              value={addDate}
-              onChange={setAddDate}
-            />
-            <TouchableOpacity
-              style={[styles.modalOkBtn, styles.modalSaveBtn]}
-              onPress={saveAddNew}>
-              <Text style={styles.modalOkText}>Save</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+      <Modal
+        visible={addNewVisible}
+        transparent
+        animationType="fade"
+        supportedOrientations={[...MODAL_LANDSCAPE_ORIENTATIONS]}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 32 : 0}>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            contentContainerStyle={styles.modalScrollContent}
+            showsVerticalScrollIndicator={false}>
+            <View style={styles.modalContent}>
+              <NumericKeyboardAccessory nativeID="brands-add-qty" />
+              <TouchableOpacity
+                style={styles.modalClose}
+                onPress={() => setAddNewVisible(false)}>
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>Add New</Text>
+              <FormInput
+                label="Cylinder"
+                placeholder="Enter cylinder name"
+                value={addCylinder}
+                onChangeText={setAddCylinder}
+              />
+              <FormInput
+                label="Quantity"
+                placeholder="Enter quantity"
+                value={addQuantity}
+                onChangeText={setAddQuantity}
+                keyboardType="numeric"
+                inputAccessoryViewID="brands-add-qty"
+                returnKeyType="done"
+                blurOnSubmit
+              />
+              <TouchableOpacity
+                style={[styles.modalOkBtn, styles.modalSaveBtn]}
+                onPress={saveAddNew}>
+                <Text style={styles.modalOkText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -352,8 +371,10 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalScrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
-    alignItems: 'center',
     padding: 24,
   },
   modalContent: {
@@ -362,6 +383,7 @@ const styles = StyleSheet.create({
     padding: 24,
     width: '100%',
     maxWidth: 400,
+    alignSelf: 'center',
   },
   modalClose: {
     position: 'absolute',

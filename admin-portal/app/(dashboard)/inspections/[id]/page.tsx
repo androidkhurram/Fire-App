@@ -71,12 +71,24 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
 
 export default async function InspectionDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ returnTo?: string }>;
 }) {
   const { id } = await params;
+  const { returnTo } = await searchParams;
   const inspection = await getInspection(id);
   if (!inspection) notFound();
+
+  const svcType = String(inspection.service_type ?? 'inspection');
+  const isInstallation = svcType === 'installation';
+  const backHref =
+    returnTo === 'installations' || isInstallation ? '/installations' : '/inspections';
+  const backLabel =
+    returnTo === 'installations' || isInstallation
+      ? '← Back to Installations'
+      : '← Back to Inspections';
 
   const [customer, items, photos] = await Promise.all([
     inspection.customer_id
@@ -87,7 +99,7 @@ export default async function InspectionDetailPage({
   ]);
 
   const systemInfo = inspection.system_info_json as Record<string, unknown> | null | undefined;
-  const serviceType = (inspection.service_type as string) ?? 'inspection';
+  const serviceType = svcType;
   const resultStatus =
     (inspection.inspection_result as string) ??
     (inspection.inspection_status as string) ??
@@ -116,11 +128,8 @@ export default async function InspectionDetailPage({
   return (
     <div className="p-8">
       <div className="mb-6 flex justify-between items-center print:hidden">
-        <Link
-          href="/inspections"
-          className="text-red-600 hover:text-red-800 font-medium text-sm"
-        >
-          ← Back to Inspections
+        <Link href={backHref} className="text-red-600 hover:text-red-800 font-medium text-sm">
+          {backLabel}
         </Link>
         <DownloadPdfButton elementId="inspection-print-area" title="Inspection Report" />
       </div>

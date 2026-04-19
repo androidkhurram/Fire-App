@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && git config core.hooksPath .githooks || true",
+    "dev": "npm run admin",
     "mobile": "cd mobile-app && npm run start",
     "admin": "cd admin-portal && npm run dev",
     "dev:clean": "cd admin-portal && npm run dev:clean",

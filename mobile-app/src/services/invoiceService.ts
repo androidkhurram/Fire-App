@@ -2,7 +2,8 @@
  * Invoice PDF generation and sharing
  */
 import type {Invoice, Customer, InvoiceLineItem} from './dataService';
-import {generatePDF} from 'react-native-html-to-pdf';
+import {generatePDF} from '../native/htmlToPdfModule';
+import {getDisplayInvoiceNumber} from '../utils/invoiceDisplay';
 
 /** Escape HTML to prevent broken PDF */
 function escapeHtml(s: string): string {
@@ -23,7 +24,18 @@ function buildInvoiceHtml(
   const serviceType = invoice.service_type ?? 'inspection';
   const paymentMethod = invoice.payment_method ?? 'invoice';
   const paymentStatus = invoice.payment_status ?? 'pending';
+  const invoiceNo = getDisplayInvoiceNumber(invoice);
   const nextServiceDate = customer?.next_service_date;
+  const sigUrl = invoice.customer_signature_data_url;
+  const signatureBlock =
+    sigUrl && sigUrl.startsWith('data:image')
+      ? `
+  <div class="section">
+    <h2>Customer signature</h2>
+    <p style="color:#555;font-size:13px;margin:0 0 12px 0;">The customer acknowledges this invoice.</p>
+    <img src="${sigUrl}" alt="Customer signature" style="max-width:320px;max-height:160px;border:1px solid #ddd;border-radius:4px;background:#fff;" />
+  </div>`
+      : '';
 
   const hasLineItems = lineItems && lineItems.length > 0;
   const lineItemsRows = hasLineItems
@@ -84,7 +96,7 @@ function buildInvoiceHtml(
   <div class="header">
     <div>
       <div class="company">Fire Inspection Services</div>
-      <p style="margin: 8px 0 0 0; color: #666;">Invoice #${escapeHtml(invoice.id.slice(0, 8).toUpperCase())}</p>
+      <p style="margin: 8px 0 0 0; color: #666;">Invoice #${escapeHtml(invoiceNo)}</p>
     </div>
     <div class="invoice-meta">
       <p><strong>Date:</strong> ${escapeHtml(invoice.invoice_date)}</p>
@@ -120,6 +132,8 @@ function buildInvoiceHtml(
     </table>
   </div>
 
+  ${signatureBlock}
+
   <div class="footer">
     <p>Thank you for your business.</p>
     <p>Generated: ${escapeHtml(new Date().toLocaleString())}</p>
@@ -136,9 +150,10 @@ export async function generateInvoicePdf(
   try {
     if (typeof generatePDF !== 'function') throw new Error('PDF module not available');
     const html = buildInvoiceHtml(invoice, customer, lineItems);
+    const safeName = getDisplayInvoiceNumber(invoice).replace(/[^A-Za-z0-9-]/g, '');
     const options = {
       html,
-      fileName: `invoice-${invoice.id.slice(0, 8)}`,
+      fileName: `invoice-${safeName}`,
       directory: 'Documents',
       width: 612,
       height: 792,
@@ -149,6 +164,9 @@ export async function generateInvoicePdf(
     const fileUri = file.filePath.startsWith('file://') ? file.filePath : `file://${file.filePath}`;
     return {filePath: file.filePath, fileUri};
   } catch (e) {
+    if (e instanceof Error && e.message.includes('PDF engine')) {
+      throw e;
+    }
     if (__DEV__) console.warn('Invoice PDF generation failed:', e);
     return null;
   }

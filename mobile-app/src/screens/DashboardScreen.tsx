@@ -7,6 +7,7 @@ interface DashboardScreenProps {
   onNewInstallation: () => void;
   onExistingCustomer: () => void;
   onCreateInvoice: () => void;
+  onInvoices: () => void;
   onReport: () => void;
   onSignOut: () => void;
   canCreateInstallation?: boolean;
@@ -22,6 +23,7 @@ export function DashboardScreen({
   onNewInstallation,
   onExistingCustomer,
   onCreateInvoice,
+  onInvoices,
   onReport,
   onSignOut,
   canCreateInstallation = true,
@@ -35,6 +37,7 @@ export function DashboardScreen({
     {title: 'New Installation', onPress: onNewInstallation, show: canCreateInstallation},
     {title: 'Existing Customer', onPress: onExistingCustomer, show: canCreateInspection},
     {title: 'Create Invoice', onPress: onCreateInvoice, show: canCreateInvoice},
+    {title: 'Invoices', onPress: onInvoices, show: true},
     {title: 'Report', onPress: onReport, show: true},
   ].filter(b => b.show);
 
@@ -62,18 +65,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.background,
     padding: 24,
-    paddingTop: 20,
+    paddingTop: 12,
   },
   containerTablet: {
     padding: 48,
-    paddingTop: 28,
+    paddingTop: 16,
   },
   column: {
     flex: 1,
     width: '100%',
     maxWidth: 400,
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between',
     paddingTop: 8,
+    paddingBottom: 8,
   },
   buttonContainer: {
     width: '100%',
@@ -82,10 +86,9 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   signOut: {
-    marginTop: 'auto',
     alignSelf: 'center',
     padding: 12,
-    paddingBottom: 24,
+    marginBottom: 8,
   },
   signOutText: {
     fontSize: 16,

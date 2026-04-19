@@ -1,17 +1,20 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useLayoutEffect} from 'react';
+import {useNavigation} from '@react-navigation/native';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   ActivityIndicator,
   Share,
   Alert,
+  Image,
 } from 'react-native';
 import {AppButton} from '../components/AppButton';
+import {KeyboardAwareFormScroll} from '../components/KeyboardAwareFormScroll';
 import {colors} from '../theme/colors';
 import {dataService, type Invoice, type Customer, type InvoiceLineItem} from '../services/dataService';
 import {generateInvoicePdf} from '../services/invoiceService';
+import {getDisplayInvoiceNumber} from '../utils/invoiceDisplay';
 
 interface InvoicePreviewScreenProps {
   invoiceId: string;
@@ -19,6 +22,7 @@ interface InvoicePreviewScreenProps {
 }
 
 export function InvoicePreviewScreen({invoiceId, onDone}: InvoicePreviewScreenProps) {
+  const navigation = useNavigation();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [lineItems, setLineItems] = useState<InvoiceLineItem[]>([]);
@@ -59,6 +63,14 @@ export function InvoicePreviewScreen({invoiceId, onDone}: InvoicePreviewScreenPr
     };
   }, [invoiceId]);
 
+  useLayoutEffect(() => {
+    if (invoice) {
+      navigation.setOptions({title: getDisplayInvoiceNumber(invoice)});
+    } else {
+      navigation.setOptions({title: 'Invoice'});
+    }
+  }, [invoice, navigation]);
+
   const generatePdf = async () => {
     if (!invoice) return null;
     return generateInvoicePdf(
@@ -82,7 +94,8 @@ export function InvoicePreviewScreen({invoiceId, onDone}: InvoicePreviewScreenPr
       }
       Alert.alert('PDF Generated', 'Invoice PDF has been saved to your device.');
     } catch (e) {
-      Alert.alert('Error', 'Could not generate PDF.');
+      const msg = e instanceof Error ? e.message : 'Could not generate PDF.';
+      Alert.alert('PDF Error', msg);
     } finally {
       setGenerating(false);
     }
@@ -100,11 +113,12 @@ export function InvoicePreviewScreen({invoiceId, onDone}: InvoicePreviewScreenPr
         );
         return;
       }
+      const label = getDisplayInvoiceNumber(invoice);
       const shareResult = await Share.share(
         {
           url: result.fileUri,
-          title: `Invoice ${invoice.id.slice(0, 8)}`,
-          message: `Invoice ${invoice.id.slice(0, 8)}`,
+          title: label,
+          message: label,
         },
         {
           dialogTitle: 'Share Invoice',
@@ -146,9 +160,9 @@ export function InvoicePreviewScreen({invoiceId, onDone}: InvoicePreviewScreenPr
   const paymentStatus = invoice.payment_status ?? 'pending';
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <KeyboardAwareFormScroll style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Invoice</Text>
-      <Text style={styles.invoiceId}>#{invoice.id.slice(0, 8).toUpperCase()}</Text>
+      <Text style={styles.invoiceId}>{getDisplayInvoiceNumber(invoice)}</Text>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Customer</Text>
@@ -224,6 +238,17 @@ export function InvoicePreviewScreen({invoiceId, onDone}: InvoicePreviewScreenPr
         </View>
       </View>
 
+      {invoice.customer_signature_data_url?.startsWith('data:image') ? (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Customer signature</Text>
+          <Image
+            source={{uri: invoice.customer_signature_data_url}}
+            style={styles.signatureImg}
+            resizeMode="contain"
+          />
+        </View>
+      ) : null}
+
       <View style={styles.actions}>
         <AppButton
           title={generating ? 'Generating...' : 'Generate PDF'}
@@ -247,7 +272,7 @@ export function InvoicePreviewScreen({invoiceId, onDone}: InvoicePreviewScreenPr
           />
         )}
       </View>
-    </ScrollView>
+    </KeyboardAwareFormScroll>
   );
 }
 
@@ -347,6 +372,11 @@ const styles = StyleSheet.create({
   },
   doneBtn: {
     marginTop: 0,
+  },
+  signatureImg: {
+    width: '100%',
+    height: 160,
+    marginTop: 4,
   },
   errorText: {
     fontSize: 16,

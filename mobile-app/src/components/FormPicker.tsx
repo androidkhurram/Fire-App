@@ -8,6 +8,7 @@ import {
   Modal,
 } from 'react-native';
 import {colors} from '../theme/colors';
+import {MODAL_LANDSCAPE_ORIENTATIONS} from '../constants/modalOrientation';
 
 export interface PickerOption {
   value: string;
@@ -48,7 +49,11 @@ export function FormPicker({
         <Text style={styles.chevron}>▼</Text>
       </TouchableOpacity>
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <Modal visible={visible} transparent animationType="slide">
+      <Modal
+        visible={visible}
+        transparent
+        animationType="slide"
+        supportedOrientations={[...MODAL_LANDSCAPE_ORIENTATIONS]}>
         <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
@@ -91,8 +96,9 @@ export function FormPicker({
 const styles = StyleSheet.create({
   container: {
     marginBottom: 16,
-    flex: 1,
     minWidth: 0,
+    alignSelf: 'stretch',
+    width: '100%',
   },
   halfWidth: {
     flex: 0,

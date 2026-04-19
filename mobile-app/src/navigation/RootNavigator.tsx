@@ -1,5 +1,5 @@
-import React, {useState, useEffect} from 'react';
-import {TouchableOpacity, Text, View, ActivityIndicator, StyleSheet} from 'react-native';
+import React, {useState, useEffect, useRef} from 'react';
+import {TouchableOpacity, Text, View, ActivityIndicator, StyleSheet, Platform} from 'react-native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {useNavigation, useRoute, RouteProp, CommonActions} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -12,6 +12,7 @@ import {DashboardScreen} from '../screens/DashboardScreen';
 import {CreateInspectionScreen} from '../screens/CreateInspectionScreen';
 import {CreateInvoiceScreen} from '../screens/CreateInvoiceScreen';
 import {InvoicePreviewScreen} from '../screens/InvoicePreviewScreen';
+import {InvoicesListScreen} from '../screens/InvoicesListScreen';
 import {ReportPreviewScreen} from '../screens/ReportPreviewScreen';
 import {CustomersListScreen} from '../screens/CustomersListScreen';
 import {CustomerDetailsScreen} from '../screens/CustomerDetailsScreen';
@@ -20,6 +21,7 @@ import {CreateCustomerScreen} from '../screens/CreateCustomerScreen';
 import {SemiAnnualReportScreen} from '../screens/SemiAnnualReportScreen';
 import {InspectionHistoryScreen} from '../screens/InspectionHistoryScreen';
 import {UploadPhotosScreen} from '../screens/UploadPhotosScreen';
+import {ServiceCompleteScreen} from '../screens/ServiceCompleteScreen';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -27,6 +29,7 @@ export type RootStackParamList = {
   CreateInspection: {customerId?: string; serviceType?: 'installation' | 'inspection' | 'maintenance'} | undefined;
   CreateInvoice: {customerId?: string} | undefined;
   InvoicePreview: {invoiceId: string};
+  InvoicesList: {customerId?: string} | undefined;
   ReportPreview: {inspectionId: string};
   CustomersList: undefined;
   CustomerDetails: {customerId: string};
@@ -35,6 +38,7 @@ export type RootStackParamList = {
   SemiAnnualReport: {reportId?: string} | undefined;
   InspectionHistory: {customerId?: string};
   UploadPhotos: {inspectionId?: string};
+  ServiceComplete: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -43,8 +47,8 @@ function HeaderBackButton({onPress}: {onPress: () => void}) {
   return (
     <TouchableOpacity
       onPress={onPress}
-      style={{flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8}}
-      hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
+      style={{flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10}}
+      hitSlop={{top: 12, bottom: 12, left: 10, right: 10}}
     >
       <Text style={{color: '#007AFF', fontSize: 22, marginRight: 4, fontWeight: '300'}}>‹</Text>
       <Text style={{color: '#007AFF', fontSize: 17}}>Back</Text>
@@ -94,6 +98,7 @@ function DashboardWrapper() {
       onNewInstallation={() => nav.navigate('CreateInspection', {serviceType: 'installation'})}
       onExistingCustomer={() => nav.navigate('CustomersList')}
       onCreateInvoice={() => nav.navigate('CreateInvoice')}
+      onInvoices={() => nav.navigate('InvoicesList')}
       onReport={() => nav.navigate('SemiAnnualReport')}
       onSignOut={async () => {
         await dataService.signOut();
@@ -116,11 +121,14 @@ function CreateInspectionWrapper() {
   const route = useRoute<RouteProp<RootStackParamList, 'CreateInspection'>>();
   const customerId = route.params?.customerId;
   const serviceType = route.params?.serviceType ?? 'inspection';
+  const saveInFlightRef = useRef(false);
   return (
         <CreateInspectionScreen
       existingCustomerId={customerId}
       serviceType={serviceType}
       onComplete={async (data, resolvedCustomerId) => {
+        if (saveInFlightRef.current) return;
+        saveInFlightRef.current = true;
         let inspection: {id: string} | null = null;
         try {
           const cid = resolvedCustomerId ?? customerId;
@@ -167,16 +175,13 @@ function CreateInspectionWrapper() {
           }
 
           inspection = await dataService.createInspection(payload);
-          if (
-            (serviceType === 'inspection' || serviceType === 'maintenance') &&
-            inspection?.id
-          ) {
-            // Photos and report upload are best-effort; don't block on failure
+          if (inspection?.id) {
+            // Persist photos for every service type (installation, inspection, maintenance)
             let photosForReport: Array<{uri: string}> = [];
             try {
               for (const photo of data.photos ?? []) {
                 if (photo.uri) {
-                  const url = await dataService.uploadInspectionPhoto(inspection!.id, {
+                  const url = await dataService.uploadInspectionPhoto(inspection.id, {
                     uri: photo.uri,
                     type: photo.type ?? 'image/jpeg',
                     name: photo.name ?? 'photo.jpg',
@@ -187,28 +192,49 @@ function CreateInspectionWrapper() {
             } catch {
               // Photos failed; continue with local URIs for report if possible
             }
-            try {
-              const reportUrl = await generateAndUploadReport(
-                inspection.id,
-                {...data, photos: photosForReport},
-                serviceType,
-              );
-              if (reportUrl) {
-                await dataService.updateInspectionReportUrl(inspection.id, reportUrl);
+            if (serviceType === 'inspection' || serviceType === 'maintenance') {
+              try {
+                const reportUrl = await generateAndUploadReport(
+                  inspection.id,
+                  {...data, photos: photosForReport},
+                  serviceType,
+                );
+                if (reportUrl) {
+                  await dataService.updateInspectionReportUrl(inspection.id, reportUrl);
+                }
+              } catch {
+                // Report upload failed; inspection is still saved, user can retry from ReportPreview
               }
-            } catch {
-              // Report upload failed; inspection is still saved, user can retry from ReportPreview
+              nav.replace('ReportPreview', {inspectionId: inspection.id});
+            } else {
+              nav.replace('ServiceComplete');
             }
-            nav.replace('ReportPreview', {inspectionId: inspection.id});
           } else {
             nav.navigate('Dashboard');
           }
         } catch (e) {
           handleAsyncError(e, 'Inspection Failed', 'Could not save the inspection. Please try again.');
           nav.navigate('Dashboard');
+        } finally {
+          saveInFlightRef.current = false;
         }
       }}
       onCancel={() => nav.goBack()}
+    />
+  );
+}
+
+function ServiceCompleteWrapper() {
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  return (
+    <ServiceCompleteScreen
+      onHome={() =>
+        nav.reset({
+          index: 0,
+          routes: [{name: 'Dashboard'}],
+        })
+      }
+      onReport={() => nav.navigate('SemiAnnualReport')}
     />
   );
 }
@@ -233,7 +259,41 @@ function InvoicePreviewWrapper() {
   return (
     <InvoicePreviewScreen
       invoiceId={invoiceId}
-      onDone={() => nav.navigate('Dashboard')}
+      onDone={() =>
+        nav.dispatch(
+          CommonActions.reset({
+            index: 1,
+            routes: [{name: 'Dashboard'}, {name: 'InvoicesList'}],
+          }),
+        )
+      }
+    />
+  );
+}
+
+function InvoicesListWrapper() {
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<RootStackParamList, 'InvoicesList'>>();
+  const customerId = route.params?.customerId;
+  const [filterCustomerLabel, setFilterCustomerLabel] = useState<string | undefined>();
+  useEffect(() => {
+    let cancelled = false;
+    if (!customerId) {
+      setFilterCustomerLabel(undefined);
+      return;
+    }
+    dataService.getCustomer(customerId).then(c => {
+      if (!cancelled) setFilterCustomerLabel(c?.business_name);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [customerId]);
+  return (
+    <InvoicesListScreen
+      filterCustomerId={customerId}
+      filterCustomerLabel={filterCustomerLabel}
+      onSelectInvoice={invoiceId => nav.navigate('InvoicePreview', {invoiceId})}
     />
   );
 }
@@ -247,6 +307,7 @@ function ReportPreviewWrapper() {
       inspectionId={inspectionId}
       onDone={() => nav.navigate('Dashboard')}
       onAddPhotos={() => nav.navigate('UploadPhotos', {inspectionId})}
+      onSemiAnnualReport={() => nav.navigate('SemiAnnualReport')}
     />
   );
 }
@@ -309,6 +370,7 @@ function CustomerDetailsWrapper() {
       onNewMaintenance={() => nav.navigate('CreateInspection', {customerId, serviceType: 'maintenance'})}
       onNewInstallation={() => nav.navigate('CreateInspection', {customerId, serviceType: 'installation'})}
       onInspectionHistory={() => nav.navigate('InspectionHistory', {customerId})}
+      onInvoices={() => nav.navigate('InvoicesList', {customerId})}
     />
   );
 }
@@ -361,12 +423,13 @@ function AuthGate(): React.JSX.Element {
   return (
     <Stack.Navigator
       screenOptions={{
-        // Large titles let content sit under the nav bar on iPad when the body is not scroll-driven.
         headerLargeTitle: false,
         headerStyle: {backgroundColor: '#FFFFFF'},
         headerTintColor: '#333333',
-        presentation: 'fullScreenModal', // Force full screen on iPad
-        contentStyle: {flex: 1}, // Ensure content fills screen
+        // Do not use fullScreenModal here: on iOS it pins the header under the status bar.
+        // statusBarTranslucent: true keeps native header top inset enabled even if insets read as 0.
+        ...(Platform.OS === 'ios' ? {statusBarTranslucent: true} : {}),
+        contentStyle: {flex: 1, paddingTop: 16},
       }}
       initialRouteName={hasSession ? 'Dashboard' : 'Login'}>
       <Stack.Screen
@@ -375,6 +438,7 @@ function AuthGate(): React.JSX.Element {
         options={{
           title: 'Fire Inspection',
           headerShown: false,
+          contentStyle: {flex: 1, paddingTop: 0},
         }}
       />
       <Stack.Screen
@@ -386,8 +450,8 @@ function AuthGate(): React.JSX.Element {
           headerRight: () => (
             <TouchableOpacity
               onPress={() => navigation.navigate('CreateCustomer')}
-              style={{paddingHorizontal: 16, paddingVertical: 8}}
-              hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
+              style={{paddingHorizontal: 16, paddingVertical: 10}}
+              hitSlop={{top: 12, bottom: 12, left: 10, right: 10}}
             >
               <Text style={{color: colors.accent, fontSize: 17, fontWeight: '600'}}>
                 + New Customer
@@ -401,6 +465,17 @@ function AuthGate(): React.JSX.Element {
         component={CreateInvoiceWrapper}
         options={({navigation}) => ({
           title: 'Create Invoice',
+          headerBackVisible: false,
+          headerLargeTitle: false,
+          headerLeft: () => <HeaderBackButton onPress={() => navigation.goBack()} />,
+        })}
+      />
+      <Stack.Screen
+        name="InvoicesList"
+        component={InvoicesListWrapper}
+        options={({navigation}) => ({
+          title: 'Invoices',
+          headerShown: true,
           headerBackVisible: false,
           headerLargeTitle: false,
           headerLeft: () => <HeaderBackButton onPress={() => navigation.goBack()} />,
@@ -425,6 +500,15 @@ function AuthGate(): React.JSX.Element {
           headerLargeTitle: false,
           headerLeft: () => <HeaderBackButton onPress={() => navigation.goBack()} />,
         })}
+      />
+      <Stack.Screen
+        name="ServiceComplete"
+        component={ServiceCompleteWrapper}
+        options={{
+          title: 'Complete',
+          headerBackVisible: false,
+          headerLargeTitle: false,
+        }}
       />
       <Stack.Screen
         name="CreateInspection"
@@ -457,7 +541,8 @@ function AuthGate(): React.JSX.Element {
           headerRight: () => (
             <TouchableOpacity
               onPress={() => navigation.navigate('CreateInspection', {serviceType: 'installation'})}
-              style={{paddingHorizontal: 16, paddingVertical: 8}}
+              style={{paddingHorizontal: 16, paddingVertical: 10}}
+              hitSlop={{top: 12, bottom: 12, left: 10, right: 10}}
             >
               <Text style={{color: '#007AFF', fontSize: 17, fontWeight: '500'}}>+ New Customer</Text>
             </TouchableOpacity>

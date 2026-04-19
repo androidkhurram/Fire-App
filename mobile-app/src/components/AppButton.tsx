@@ -7,6 +7,7 @@ interface AppButtonProps {
   onPress: () => void;
   variant?: 'primary' | 'outline';
   loading?: boolean;
+  disabled?: boolean;
   icon?: React.ReactNode;
   style?: object;
 }
@@ -16,14 +17,21 @@ export function AppButton({
   onPress,
   variant = 'primary',
   loading,
+  disabled,
   icon,
   style,
 }: AppButtonProps) {
+  const isDisabled = Boolean(disabled || loading);
   return (
     <TouchableOpacity
-      style={[styles.button, variant === 'outline' && styles.buttonOutline, style]}
+      style={[
+        styles.button,
+        variant === 'outline' && styles.buttonOutline,
+        isDisabled && styles.buttonDisabled,
+        style,
+      ]}
       onPress={onPress}
-      disabled={loading}
+      disabled={isDisabled}
       activeOpacity={0.8}>
       {loading ? (
         <ActivityIndicator color={variant === 'primary' ? colors.white : colors.accent} />
@@ -55,6 +63,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 2,
     borderColor: colors.accent,
+  },
+  buttonDisabled: {
+    opacity: 0.55,
   },
   text: {
     color: colors.white,

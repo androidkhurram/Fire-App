@@ -1,13 +1,7 @@
 import React, {useState} from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  useWindowDimensions,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from 'react-native';
+import {View, Text, StyleSheet, useWindowDimensions} from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
+import {KeyboardAwareFormScroll} from '../components/KeyboardAwareFormScroll';
 import {FormInput} from '../components/FormInput';
 import {AppButton} from '../components/AppButton';
 import {colors} from '../theme/colors';
@@ -46,12 +40,10 @@ export function LoginScreen({onLogin, onBack}: LoginScreenProps) {
   };
 
   return (
-    <KeyboardAvoidingView
+    <SafeAreaView style={styles.safeRoot} edges={['bottom', 'left', 'right']}>
+    <KeyboardAwareFormScroll
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled">
+      contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>Sign In</Text>
         <Text style={styles.subtitle}>Technician or Admin login</Text>
         <View style={styles.form}>
@@ -89,12 +81,16 @@ export function LoginScreen({onLogin, onBack}: LoginScreenProps) {
             />
           </View>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAwareFormScroll>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeRoot: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -103,7 +99,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     padding: 24,
-    paddingTop: 48,
+    paddingTop: 24,
   },
   title: {
     fontSize: 28,

@@ -8,7 +8,7 @@ import {FormPicker} from '../components/FormPicker';
 import {US_STATES} from '../constants/formOptions';
 import {AppButton} from '../components/AppButton';
 import {colors} from '../theme/colors';
-import {dataService, Customer} from '../services/dataService';
+import {dataService, Customer, addMonths} from '../services/dataService';
 import {handleAsyncError, showError} from '../utils/errorHandler';
 import {
   validateRequired,
@@ -86,7 +86,8 @@ export function CreateCustomerScreen({
     <KeyboardAwareFormScroll
       style={styles.container}
       contentContainerStyle={styles.content}
-      nestedScrollEnabled>
+      nestedScrollEnabled
+      keyboardShouldPersistTaps="always">
       <Text style={styles.title}>Create New Customer</Text>
       <FormInput
         label="Business Name"
@@ -175,8 +176,21 @@ export function CreateCustomerScreen({
       <DatePickerField
         label="Last Service Date"
         value={data.last_service_date ?? ''}
-        onChange={v => setData(prev => ({...prev, last_service_date: v}))}
+        onChange={v =>
+          setData(prev => {
+            const last = v;
+            let next = prev.next_service_date;
+            if (last && /^\d{4}-\d{2}-\d{2}$/.test(last)) {
+              next = addMonths(last, 6);
+            }
+            return {...prev, last_service_date: last, next_service_date: next};
+          })
+        }
       />
+      <Text style={styles.fieldHint}>
+        Next service date updates automatically to six months after the last service date (you can still change it
+        below).
+      </Text>
       <DatePickerField
         label="Next Service Date"
         value={data.next_service_date ?? ''}
@@ -211,6 +225,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.darkGray,
     marginBottom: 24,
+  },
+  fieldHint: {
+    fontSize: 13,
+    color: colors.gray,
+    marginTop: -8,
+    marginBottom: 12,
+    lineHeight: 18,
   },
   buttons: {
     flexDirection: 'row',

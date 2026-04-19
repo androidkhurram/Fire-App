@@ -136,12 +136,12 @@ export async function loadReportSource(inspectionId: string): Promise<ReportSour
   return {inspection, customer, wizardData};
 }
 
-function formatSystemBrandItems(items?: Array<{brand: string; model?: string; quantity?: number; dateOfManufacture?: string}>): string {
+function formatSystemBrandItems(items?: Array<{brand: string; model?: string; quantity?: number}>): string {
   if (!items?.length) return '';
   return items
     .map(
       i =>
-        `<tr><td><strong>${escapeHtml(i.brand)}${i.model ? ` – ${escapeHtml(i.model)}` : ''}</strong></td><td>Qty: ${escapeHtml(String(i.quantity ?? '—'))}, DOM: ${escapeHtml(String(i.dateOfManufacture ?? '—'))}</td></tr>`,
+        `<tr><td><strong>${escapeHtml(i.brand)}${i.model ? ` – ${escapeHtml(i.model)}` : ''}</strong></td><td>Qty: ${escapeHtml(String(i.quantity ?? '—'))}</td></tr>`,
     )
     .join('');
 }
@@ -481,8 +481,7 @@ export async function generateReceiptPdfForShare(
   source: ReportSource,
 ): Promise<{filePath: string; fileUri: string} | null> {
   try {
-    const mod = await import('react-native-html-to-pdf');
-    const {generatePDF} = mod;
+    const {generatePDF} = await import('../native/htmlToPdfModule');
     if (typeof generatePDF !== 'function') throw new Error('PDF module not available');
     const html = buildReceiptHtml(source);
     const options = {
@@ -498,6 +497,9 @@ export async function generateReceiptPdfForShare(
     const fileUri = file.filePath.startsWith('file://') ? file.filePath : `file://${file.filePath}`;
     return {filePath: file.filePath, fileUri};
   } catch (e) {
+    if (e instanceof Error && e.message.includes('PDF engine')) {
+      throw e;
+    }
     if (__DEV__) console.warn('Receipt PDF generation failed:', e);
     const msg = e instanceof Error ? e.message : String(e);
     const isModuleError =
@@ -517,8 +519,7 @@ export async function generateReportPdfForShare(
   source: ReportSource,
 ): Promise<{filePath: string; fileUri: string} | null> {
   try {
-    const mod = await import('react-native-html-to-pdf');
-    const {generatePDF} = mod;
+    const {generatePDF} = await import('../native/htmlToPdfModule');
     if (typeof generatePDF !== 'function') throw new Error('PDF module not available');
     const serviceType = source.inspection.service_type ?? 'inspection';
     const inspectionDate = source.wizardData?.inspectionSetup?.inspectionDate ?? source.inspection.inspection_date;
@@ -546,6 +547,9 @@ export async function generateReportPdfForShare(
     const fileUri = file.filePath.startsWith('file://') ? file.filePath : `file://${file.filePath}`;
     return {filePath: file.filePath, fileUri};
   } catch (e) {
+    if (e instanceof Error && e.message.includes('PDF engine')) {
+      throw e;
+    }
     if (__DEV__) console.warn('PDF generation failed:', e);
     return null;
   }
@@ -563,7 +567,7 @@ export async function generateAndUploadReport(
   serviceType: 'inspection' | 'maintenance',
 ): Promise<string | null> {
   try {
-    const {generatePDF} = await import('react-native-html-to-pdf');
+    const {generatePDF} = await import('../native/htmlToPdfModule');
     const inspectionDate = data.inspectionSetup?.inspectionDate ?? new Date().toISOString().split('T')[0]!;
     const nextServiceDate = addMonths(inspectionDate, 6);
     const html = buildReportHtmlFromWizard(data, serviceType, nextServiceDate);

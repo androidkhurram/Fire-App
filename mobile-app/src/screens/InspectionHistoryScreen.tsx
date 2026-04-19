@@ -61,7 +61,7 @@ export function InspectionHistoryScreen({
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.accent} />
         </View>
@@ -70,7 +70,7 @@ export function InspectionHistoryScreen({
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
     <View style={styles.container}>
       <Text style={styles.title}>Inspection History</Text>
       <FlatList

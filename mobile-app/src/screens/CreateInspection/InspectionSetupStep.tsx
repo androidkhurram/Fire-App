@@ -1,5 +1,6 @@
 import React, {useState} from 'react';
-import {View, Text, StyleSheet, ScrollView, Switch} from 'react-native';
+import {View, Text, StyleSheet, Switch} from 'react-native';
+import {KeyboardAwareFormScroll} from '../../components/KeyboardAwareFormScroll';
 import {StepProgress, type Step} from '../../components/StepProgress';
 import {DatePickerField} from '../../components/DatePickerField';
 import {FormPicker} from '../../components/FormPicker';
@@ -55,7 +56,7 @@ export function InspectionSetupStep({
       <View style={styles.sidebar}>
         <StepProgress steps={steps} currentStep={currentStep} onStepPress={onStepSelect} />
       </View>
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
+      <KeyboardAwareFormScroll style={styles.content} contentContainerStyle={styles.contentInner}>
         <Text style={styles.title}>Inspection Setup</Text>
         <View style={styles.switchRow}>
           <Text style={styles.switchLabel}>Inspection Scheduled</Text>
@@ -90,7 +91,7 @@ export function InspectionSetupStep({
             style={styles.continueBtn}
           />
         </View>
-      </ScrollView>
+      </KeyboardAwareFormScroll>
     </View>
   );
 }

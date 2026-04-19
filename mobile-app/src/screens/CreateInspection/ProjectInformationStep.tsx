@@ -55,12 +55,15 @@ export function ProjectInformationStep({
   });
 
   useEffect(() => {
-    if (data.technicianName) return;
+    let cancelled = false;
     dataService.getSession().then(session => {
-      if (session?.displayName) {
-        setData(prev => ({...prev, technicianName: session.displayName!}));
-      }
+      if (cancelled || !session) return;
+      const name = session.displayName?.trim() || session.email;
+      setData(prev => ({...prev, technicianName: name}));
     });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
@@ -87,10 +90,11 @@ export function ProjectInformationStep({
         />
         <FormInput
           label="Technician Name"
-          placeholder="Enter technician name"
-          value={data.technicianName}
-          onChangeText={v => setData({...data, technicianName: v})}
+          placeholder="—"
+          value={data.technicianName || '—'}
+          readOnly
         />
+        <Text style={styles.readOnlyHint}>Taken from your signed-in account</Text>
         <View style={styles.buttons}>
           <AppButton title="Back" onPress={onBack} variant="outline" style={styles.backBtn} />
           <AppButton
@@ -142,5 +146,11 @@ const styles = StyleSheet.create({
   },
   continueBtn: {
     flex: 1,
+  },
+  readOnlyHint: {
+    fontSize: 12,
+    color: colors.gray,
+    marginTop: -8,
+    marginBottom: 8,
   },
 });

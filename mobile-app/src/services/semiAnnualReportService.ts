@@ -232,7 +232,7 @@ export async function generateSemiAnnualReportPdf(
   items: SemiAnnualReportItem[],
 ): Promise<SemiAnnualReportPdfResult | null> {
   try {
-    const {generatePDF} = await import('react-native-html-to-pdf');
+    const {generatePDF} = await import('../native/htmlToPdfModule');
     if (typeof generatePDF !== 'function') return null;
 
     const html = buildSemiAnnualReportHtml(data, items);

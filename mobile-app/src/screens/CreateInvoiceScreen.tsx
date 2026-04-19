@@ -3,10 +3,8 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   ActivityIndicator,
   TouchableOpacity,
-  FlatList,
   Switch,
 } from 'react-native';
 import DocumentPicker from 'react-native-document-picker';
@@ -19,6 +17,8 @@ import {
   PAYMENT_STATUSES,
 } from '../constants/formOptions';
 import {AppButton} from '../components/AppButton';
+import {KeyboardAwareFormScroll} from '../components/KeyboardAwareFormScroll';
+import {CustomerSignaturePad} from '../components/CustomerSignaturePad';
 import {colors} from '../theme/colors';
 import {dataService, Customer, Inspection, InvoiceItem, InvoiceLineItem} from '../services/dataService';
 import {handleAsyncError, showError} from '../utils/errorHandler';
@@ -74,6 +74,7 @@ export function CreateInvoiceScreen({
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [showInspectionPicker, setShowInspectionPicker] = useState(false);
   const [showItemPicker, setShowItemPicker] = useState(false);
+  const [customerSignatureDataUrl, setCustomerSignatureDataUrl] = useState<string | null>(null);
   const [data, setData] = useState<InvoiceData>({
     customerId: preselectedCustomerId ?? '',
     projectId: preselectedProjectId ?? '',
@@ -220,6 +221,17 @@ export function CreateInvoiceScreen({
       showError('Validation', 'Please add at least one line item, or enter an amount.');
       return;
     }
+    if (
+      !customerSignatureDataUrl ||
+      !customerSignatureDataUrl.startsWith('data:image') ||
+      customerSignatureDataUrl.length < 800
+    ) {
+      showError(
+        'Signature required',
+        'Please have the customer sign in the signature box and tap "Use this signature" before creating the invoice.',
+      );
+      return;
+    }
     setSubmitting(true);
     try {
       const serviceLabel = `${(data.serviceType || 'inspection').charAt(0).toUpperCase()}${(data.serviceType || 'inspection').slice(1)} Service`;
@@ -253,6 +265,7 @@ export function CreateInvoiceScreen({
         total,
         payment_method: data.paymentMethod as 'cash' | 'card' | 'invoice' | 'check' | 'other',
         payment_status: data.paymentStatus as 'paid' | 'pending' | 'overdue',
+        customer_signature_data_url: customerSignatureDataUrl,
         ...(lineItems.length > 0 && {line_items: lineItems}),
       });
       if (data.pdfUri && data.pdfName) {
@@ -282,7 +295,7 @@ export function CreateInvoiceScreen({
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <KeyboardAwareFormScroll style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Create Invoice</Text>
       <Text style={styles.label}>Customer</Text>
       <TouchableOpacity
@@ -294,20 +307,17 @@ export function CreateInvoiceScreen({
       </TouchableOpacity>
       {showCustomerPicker && (
         <View style={styles.pickerList}>
-          <FlatList
-            data={customers}
-            keyExtractor={c => c.id}
-            renderItem={({item}) => (
-              <TouchableOpacity
-                style={styles.pickerItem}
-                onPress={() => {
-                  setData({...data, customerId: item.id});
-                  setShowCustomerPicker(false);
-                }}>
-                <Text style={styles.pickerItemText}>{item.business_name}</Text>
-              </TouchableOpacity>
-            )}
-          />
+          {customers.map(item => (
+            <TouchableOpacity
+              key={item.id}
+              style={styles.pickerItem}
+              onPress={() => {
+                setData({...data, customerId: item.id});
+                setShowCustomerPicker(false);
+              }}>
+              <Text style={styles.pickerItemText}>{item.business_name}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
       )}
       {inspections.length > 0 ? (
@@ -482,6 +492,7 @@ export function CreateInvoiceScreen({
         options={PAYMENT_STATUSES}
         onSelect={v => setData({...data, paymentStatus: v})}
       />
+      <CustomerSignaturePad value={customerSignatureDataUrl} onChange={setCustomerSignatureDataUrl} />
       <Text style={styles.label}>Attach PDF (optional)</Text>
       <TouchableOpacity style={styles.picker} onPress={pickPdf}>
         <Text style={styles.pickerText}>
@@ -499,7 +510,7 @@ export function CreateInvoiceScreen({
           style={styles.btn}
         />
       </View>
-    </ScrollView>
+    </KeyboardAwareFormScroll>
   );
 }
 

@@ -120,13 +120,28 @@ Reminders stop when the customer has an inspection scheduled for that period.
    ```
 
 3. **Migration**: Run `supabase db push` (or apply `023_reminder_type.sql`).
-4. **Vercel**: Deploy admin-portal; cron runs daily at 9:00 UTC.
+4. **Vercel**: Deploy admin-portal; add **all** env vars in the project (including `CRON_SECRET`). Cron runs daily at **9:00 UTC** (`vercel.json`). Vercel injects `Authorization: Bearer <CRON_SECRET>` automatically when `CRON_SECRET` is set—without it, cron returns 401.
 
-### Manual test
+### Manual tests
+
+Send a single SMS (same auth as cron):
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" "https://your-app.vercel.app/api/test-sms?to=%2B15551234567"
+```
+
+Run the full reminder job (dry-run behavior: only sends when `next_service_date` matches the 30/14/7-day windows):
 
 ```bash
 curl -H "Authorization: Bearer $CRON_SECRET" https://your-app.vercel.app/api/cron/send-reminders
 ```
+
+### Production checklist
+
+- **Twilio**: Non-trial account (or trial only sends to [verified numbers](https://www.twilio.com/docs/usage/tutorials/how-to-use-your-free-trial-account)). Complete **A2P 10DLC** (or toll-free verification) for US long-code messaging to real customers.
+- **From number**: `TWILIO_PHONE_NUMBER` must be SMS-capable and match your Twilio registration.
+- **Duplicate cron**: Vercel may occasionally invoke a cron twice; the job uses DB dedupe, but overlapping runs can still rarely double-send—see [Vercel cron idempotency](https://vercel.com/docs/cron-jobs/manage-cron-jobs#cron-jobs-and-idempotency). For stricter guarantees, add a DB unique constraint on `(customer_id, next_service_date, reminder_type)` and handle conflicts.
+- **Supabase Edge Function** `backend/supabase/functions/reminder` is still a stub (TODO)—reminders are implemented in **admin-portal** `/api/cron/send-reminders`, not that function.
 
 ## Next Steps
 

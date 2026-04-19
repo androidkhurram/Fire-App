@@ -1,5 +1,7 @@
 import React, {useState} from 'react';
-import {View, Text, StyleSheet, ScrollView, Switch, TouchableOpacity, ActivityIndicator} from 'react-native';
+import {View, Text, StyleSheet, Switch, TouchableOpacity, ActivityIndicator} from 'react-native';
+import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
+import {KeyboardAwareFormScroll} from '../../components/KeyboardAwareFormScroll';
 import DocumentPicker from 'react-native-document-picker';
 import {StepProgress, type Step} from '../../components/StepProgress';
 import {FormInput} from '../../components/FormInput';
@@ -9,6 +11,7 @@ import {PERMIT_STATUSES} from '../../constants/formOptions';
 import {AppButton} from '../../components/AppButton';
 import {colors} from '../../theme/colors';
 import {dataService} from '../../services/dataService';
+import {handleAsyncError} from '../../utils/errorHandler';
 
 const WIZARD_STEPS = [
   {id: 1, title: 'Customer Information'},
@@ -60,6 +63,21 @@ export function PermitStatusStep({
   });
   const [uploading, setUploading] = useState(false);
 
+  const uploadPermitAsset = async (uri: string, mimeType: string, fileName: string) => {
+    setUploading(true);
+    try {
+      const path = `permit-${Date.now()}-${fileName}`;
+      const url = await dataService.uploadFile('permit-documents', path, {
+        uri,
+        type: mimeType,
+        name: fileName,
+      });
+      if (url) setData(prev => ({...prev, permitDocumentUrl: url}));
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handlePickDocument = async () => {
     try {
       const res = await DocumentPicker.pick({
@@ -68,19 +86,36 @@ export function PermitStatusStep({
       });
       const file = Array.isArray(res) ? res[0] : res;
       if (!file?.fileCopyUri) return;
-      setUploading(true);
-      const path = `permit-${Date.now()}-${file.name ?? 'document'}`;
-      const url = await dataService.uploadFile('permit-documents', path, {
-        uri: file.fileCopyUri,
-        type: file.type ?? 'application/pdf',
-        name: file.name ?? undefined,
-      });
-      if (url) setData(prev => ({...prev, permitDocumentUrl: url}));
+      await uploadPermitAsset(
+        file.fileCopyUri,
+        file.type ?? 'application/pdf',
+        file.name ?? 'document',
+      );
     } catch (e) {
       if (DocumentPicker.isCancel(e)) return;
       console.error(e);
-    } finally {
-      setUploading(false);
+    }
+  };
+
+  const pickImage = async (fromCamera: boolean) => {
+    const options = {
+      mediaType: 'photo' as const,
+      quality: 0.8 as const,
+      saveToPhotos: false,
+    };
+    try {
+      const result = fromCamera ? await launchCamera(options) : await launchImageLibrary(options);
+      if (result.didCancel) return;
+      const asset = result.assets?.[0];
+      const assetUri = asset?.uri;
+      if (!assetUri) return;
+      await uploadPermitAsset(
+        assetUri,
+        asset.type ?? 'image/jpeg',
+        asset.fileName ?? 'permit-photo.jpg',
+      );
+    } catch (e) {
+      handleAsyncError(e, 'Photo Error', 'Could not open camera or gallery.');
     }
   };
 
@@ -89,7 +124,7 @@ export function PermitStatusStep({
       <View style={styles.sidebar}>
         <StepProgress steps={steps} currentStep={currentStep} onStepPress={onStepSelect} />
       </View>
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
+      <KeyboardAwareFormScroll style={styles.content} contentContainerStyle={styles.contentInner}>
         <Text style={styles.title}>Permit Status</Text>
         <View style={styles.switchRow}>
           <Text style={styles.switchLabel}>Permit Applied</Text>
@@ -129,18 +164,39 @@ export function PermitStatusStep({
         />
         <View style={styles.uploadSection}>
           <Text style={styles.uploadLabel}>Upload Permit Document</Text>
-          <TouchableOpacity
-            style={styles.uploadBtn}
-            onPress={handlePickDocument}
-            disabled={uploading}>
-            {uploading ? (
-              <ActivityIndicator size="small" color={colors.accent} />
-            ) : (
-              <Text style={styles.uploadBtnText}>
-                {data.permitDocumentUrl ? 'Document uploaded ✓' : 'Choose file (PDF or image)'}
+          {uploading ? (
+            <View style={styles.uploadingWrap}>
+              <ActivityIndicator size="large" color={colors.accent} />
+              <Text style={styles.uploadingText}>Uploading…</Text>
+            </View>
+          ) : (
+            <View style={styles.actionRow}>
+              <TouchableOpacity
+                style={styles.actionBtn}
+                onPress={() => pickImage(true)}
+                disabled={uploading}>
+                <Text style={styles.actionIcon}>📷</Text>
+                <Text style={styles.actionText}>Take Photo</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.actionBtn}
+                onPress={() => pickImage(false)}
+                disabled={uploading}>
+                <Text style={styles.actionIcon}>🖼️</Text>
+                <Text style={styles.actionText}>Choose from Gallery</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {!uploading ? (
+            <TouchableOpacity
+              style={styles.chooseFileBtn}
+              onPress={handlePickDocument}
+              disabled={uploading}>
+              <Text style={styles.chooseFileText}>
+                {data.permitDocumentUrl ? 'Replace with PDF or file…' : 'Choose file (PDF or image)'}
               </Text>
-            )}
-          </TouchableOpacity>
+            </TouchableOpacity>
+          ) : null}
           {data.permitDocumentUrl ? (
             <Text style={styles.uploadHint} numberOfLines={1}>
               {data.permitDocumentUrl}
@@ -155,7 +211,7 @@ export function PermitStatusStep({
             style={styles.continueBtn}
           />
         </View>
-      </ScrollView>
+      </KeyboardAwareFormScroll>
     </View>
   );
 }
@@ -202,17 +258,51 @@ const styles = StyleSheet.create({
     color: colors.darkGray,
     marginBottom: 8,
   },
-  uploadBtn: {
+  actionRow: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 12,
+  },
+  actionBtn: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: colors.accentLight,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: colors.accent,
+    alignItems: 'center',
+  },
+  actionIcon: {
+    fontSize: 28,
+    marginBottom: 6,
+  },
+  actionText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.accent,
+    textAlign: 'center',
+  },
+  chooseFileBtn: {
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
-    padding: 16,
+    padding: 14,
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: colors.white,
   },
-  uploadBtnText: {
+  chooseFileText: {
     color: colors.accent,
     fontSize: 16,
+  },
+  uploadingWrap: {
+    paddingVertical: 32,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  uploadingText: {
+    marginTop: 12,
+    fontSize: 15,
+    color: colors.gray,
   },
   uploadHint: {
     fontSize: 12,

@@ -15,18 +15,32 @@ export function isTwilioConfigured(): boolean {
   return !!(accountSid && authToken && fromNumber);
 }
 
+/** E.164 after normalization; false if too few digits to be a real number. */
+function normalizeToE164(to: string): { e164: string; ok: boolean } {
+  let digits = to.replace(/\D/g, '');
+  if (digits.length === 10) {
+    digits = '1' + digits;
+  }
+  if (digits.length === 11 && digits.startsWith('1')) {
+    return { e164: '+' + digits, ok: true };
+  }
+  if (digits.length >= 10 && digits.length <= 15) {
+    return { e164: '+' + digits, ok: true };
+  }
+  return { e164: digits ? '+' + digits : '', ok: false };
+}
+
 export async function sendSms(to: string, body: string): Promise<{ success: boolean; sid?: string; error?: string }> {
   if (!isTwilioConfigured()) {
     return { success: false, error: 'Twilio not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER.' };
   }
 
-  let normalized = to.replace(/\D/g, '');
-  if (normalized.length === 10) {
-    normalized = '+1' + normalized;
-  } else if (normalized.length === 11 && normalized.startsWith('1')) {
-    normalized = '+' + normalized;
-  } else if (!normalized.startsWith('+')) {
-    normalized = '+' + normalized;
+  const { e164: normalized, ok } = normalizeToE164(to);
+  if (!ok) {
+    return {
+      success: false,
+      error: 'Invalid phone number: need at least 10 digits (US) or a valid international number.',
+    };
   }
 
   try {

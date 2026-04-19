@@ -41,9 +41,31 @@ export async function POST(request: NextRequest) {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const { data: adminUser } = await adminClient.from('users').select('role').eq('id', user.id).single();
-  if (!adminUser || adminUser.role !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden: admin role required' }, { status: 403 });
+  const { data: adminUser, error: profileErr } = await adminClient
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (profileErr) {
+    return NextResponse.json({ error: 'Could not load user profile' }, { status: 500 });
+  }
+  if (!adminUser) {
+    return NextResponse.json(
+      {
+        error:
+          'No row in public.users for this login. Supabase Auth is not enough — insert your Auth user id into public.users with role admin (see SUPABASE_SETUP.md), then try again.',
+      },
+      { status: 403 },
+    );
+  }
+  if (adminUser.role !== 'admin') {
+    return NextResponse.json(
+      {
+        error: `Forbidden: admin role required (your profile role is "${adminUser.role}").`,
+      },
+      { status: 403 },
+    );
   }
 
   const body = await request.json();

@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Platform,
+  Keyboard,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {colors} from '../theme/colors';
@@ -51,6 +52,7 @@ export function DatePickerField({
   };
 
   const handleOpen = () => {
+    Keyboard.dismiss();
     setPendingDate(value ? new Date(value + 'T12:00:00') : new Date());
     setShow(true);
   };
@@ -96,6 +98,8 @@ export function DatePickerField({
 const styles = StyleSheet.create({
   container: {
     marginBottom: 16,
+    alignSelf: 'stretch',
+    width: '100%',
   },
   label: {
     fontSize: 14,

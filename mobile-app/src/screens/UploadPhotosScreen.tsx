@@ -7,13 +7,12 @@ import {
   Image,
   ScrollView,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import {AppButton} from '../components/AppButton';
 import {colors} from '../theme/colors';
-import {dataService} from '../services/dataService';
-import {handleAsyncError, showError} from '../utils/errorHandler';
+import {dataService, useSupabase} from '../services/dataService';
+import {handleAsyncError} from '../utils/errorHandler';
 
 interface UploadPhotosScreenProps {
   inspectionId?: string;
@@ -51,14 +50,25 @@ export function UploadPhotosScreen({
             type: asset.type ?? 'image/jpeg',
             name: asset.fileName ?? 'photo.jpg',
           });
-          if (url) {
-            setPhotos(prev => [...prev, {uri: url}]);
-          } else {
-            setPhotos(prev => [...prev, {uri: assetUri}]);
+          const finalUri = url ?? assetUri;
+          setPhotos(prev => [...prev, {uri: finalUri}]);
+          if (!useSupabase) {
+            await dataService.appendInspectionPhotoLocal(inspectionId, {
+              uri: finalUri,
+              type: asset.type ?? 'image/jpeg',
+              name: asset.fileName ?? 'photo.jpg',
+            });
           }
         } catch (e) {
           handleAsyncError(e, 'Upload Failed', 'Could not upload photo. It will be saved locally.');
           setPhotos(prev => [...prev, {uri: assetUri}]);
+          if (!useSupabase) {
+            await dataService.appendInspectionPhotoLocal(inspectionId, {
+              uri: assetUri,
+              type: asset.type ?? 'image/jpeg',
+              name: asset.fileName ?? 'photo.jpg',
+            });
+          }
         } finally {
           setUploading(false);
         }

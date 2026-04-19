@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendSms, isTwilioConfigured } from '@/lib/twilio';
 
+/** Allow many reminders in one run (Vercel / Next cap; raise on Pro if needed). */
+export const maxDuration = 120;
+
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -128,13 +131,19 @@ export async function GET(request: NextRequest) {
       const smsResult = await sendSms(phone, message);
 
       if (smsResult.success) {
-        await supabase.from('reminders').insert({
+        const { error: insertErr } = await supabase.from('reminders').insert({
           customer_id: customerId,
           channel: 'sms',
           next_service_date: nextServiceDate,
           reminder_type: reminderType,
         });
-        results.sent++;
+        if (insertErr) {
+          results.errors.push(
+            `${businessName}: SMS sent (${smsResult.sid}) but DB log failed — customer may get a duplicate next run: ${insertErr.message}`
+          );
+        } else {
+          results.sent++;
+        }
       } else {
         results.errors.push(`${businessName}: ${smsResult.error}`);
       }

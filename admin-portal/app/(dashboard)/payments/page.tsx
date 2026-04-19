@@ -25,6 +25,13 @@ function formatPaymentMethod(m: string): string {
   return m;
 }
 
+/** payment_info_json stores amounts as strings; empty string must not become NaN. */
+function amountFromJson(v: unknown): number {
+  if (v == null || v === '') return 0;
+  const n = parseFloat(String(v).replace(/[$,\s]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
+
 async function getPayments(): Promise<PaymentRow[]> {
   const rows: PaymentRow[] = [];
 
@@ -62,9 +69,9 @@ async function getPayments(): Promise<PaymentRow[]> {
     for (const i of inspectionsData as Record<string, unknown>[]) {
       const info = i.payment_info_json as Record<string, unknown> | null;
       if (!info) continue;
-      const total = parseFloat(String(info.totalAmount ?? 0));
-      const advance = parseFloat(String(info.advanceAmount ?? 0));
-      const balance = parseFloat(String(info.balanceAmount ?? 0));
+      const total = amountFromJson(info.totalAmount);
+      const advance = amountFromJson(info.advanceAmount);
+      const balance = amountFromJson(info.balanceAmount);
       const paid = advance;
       const pending = balance > 0 ? balance : (total - advance);
       if (total <= 0 && advance <= 0) continue;

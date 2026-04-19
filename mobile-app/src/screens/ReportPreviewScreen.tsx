@@ -3,16 +3,17 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   ActivityIndicator,
   Share,
   Alert,
   Platform,
-  Linking,
   TouchableOpacity,
   Image,
+  useWindowDimensions,
 } from 'react-native';
+import {WebView} from 'react-native-webview';
 import {AppButton} from '../components/AppButton';
+import {KeyboardAwareFormScroll} from '../components/KeyboardAwareFormScroll';
 import {colors} from '../theme/colors';
 import {
   loadReportSource,
@@ -25,6 +26,8 @@ interface ReportPreviewScreenProps {
   inspectionId: string;
   onDone?: () => void;
   onAddPhotos?: () => void;
+  /** Same as Dashboard — semi-annual inspection report */
+  onSemiAnnualReport?: () => void;
 }
 
 function DetailRow({label, value}: {label: string; value: string | undefined}) {
@@ -46,11 +49,21 @@ function SectionCard({title, children}: {title: string; children: React.ReactNod
   );
 }
 
-export function ReportPreviewScreen({inspectionId, onDone, onAddPhotos}: ReportPreviewScreenProps) {
+type GeneratedPdf = {filePath: string; fileUri: string};
+
+export function ReportPreviewScreen({
+  inspectionId,
+  onDone,
+  onAddPhotos,
+  onSemiAnnualReport,
+}: ReportPreviewScreenProps) {
+  const {width: windowWidth} = useWindowDimensions();
   const [source, setSource] = useState<ReportSource | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [generatingReceipt, setGeneratingReceipt] = useState(false);
+  /** Last generated report PDF — shown inline; Share uses this without regenerating */
+  const [reportPdf, setReportPdf] = useState<GeneratedPdf | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,15 +100,42 @@ export function ReportPreviewScreen({inspectionId, onDone, onAddPhotos}: ReportP
         );
         return;
       }
-      Alert.alert('PDF Generated', 'Report PDF has been saved to your device.');
+      setReportPdf(result);
     } catch (e) {
-      Alert.alert('Error', 'Could not generate PDF.');
+      const msg = e instanceof Error ? e.message : 'Could not generate PDF.';
+      Alert.alert('PDF Error', msg);
     } finally {
       setGenerating(false);
     }
   };
 
+  const shareReportFile = async (pdf: GeneratedPdf, s: ReportSource) => {
+    const shareResult = await Share.share(
+      {
+        url: pdf.fileUri,
+        title: `${s.inspection.service_type ?? 'Inspection'} Report`,
+        message: `Report ${s.inspection.id.slice(0, 8)}`,
+      },
+      {dialogTitle: 'Share Report'},
+    );
+    if (shareResult.action === Share.dismissedAction) {
+      // User cancelled
+    }
+  };
+
   const handleShare = async () => {
+    if (reportPdf && source) {
+      try {
+        await shareReportFile(reportPdf, source);
+      } catch (e) {
+        const msg = (e as {message?: string})?.message ?? '';
+        if (!msg.includes('User did not share')) {
+          Alert.alert('Error', msg || 'Could not share report');
+        }
+      }
+      return;
+    }
+
     setGenerating(true);
     try {
       const s = await loadReportSource(inspectionId);
@@ -111,22 +151,16 @@ export function ReportPreviewScreen({inspectionId, onDone, onAddPhotos}: ReportP
         );
         return;
       }
-      const shareResult = await Share.share(
-        {
-          url: result.fileUri,
-          title: `${s.inspection.service_type ?? 'Inspection'} Report`,
-          message: `Report ${s.inspection.id.slice(0, 8)}`,
-        },
-        {dialogTitle: 'Share Report'},
-      );
-      if (shareResult.action === Share.dismissedAction) {
-        // User cancelled - that's ok
-      }
+      setReportPdf(result);
+      await shareReportFile(result, s);
     } catch (e) {
-      if ((e as {message?: string})?.message?.includes('User did not share')) {
+      const msg = (e as {message?: string})?.message ?? '';
+      if (msg.includes('User did not share')) {
         // User cancelled - that's ok
+      } else if (msg.includes('PDF engine')) {
+        Alert.alert('PDF Error', msg);
       } else {
-        Alert.alert('Error', 'Could not share report');
+        Alert.alert('Error', msg || 'Could not share report');
       }
     } finally {
       setGenerating(false);
@@ -173,18 +207,6 @@ export function ReportPreviewScreen({inspectionId, onDone, onAddPhotos}: ReportP
     }
   };
 
-  const handleViewOnline = async () => {
-    if (!source?.inspection?.report_url) return;
-    try {
-      const canOpen = await Linking.canOpenURL(source.inspection.report_url);
-      if (canOpen) {
-        await Linking.openURL(source.inspection.report_url);
-      }
-    } catch {
-      Alert.alert('Error', 'Could not open report link');
-    }
-  };
-
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -197,6 +219,14 @@ export function ReportPreviewScreen({inspectionId, onDone, onAddPhotos}: ReportP
     return (
       <View style={styles.centered}>
         <Text style={styles.errorText}>Report not found</Text>
+        {onSemiAnnualReport && (
+          <AppButton
+            title="Report"
+            onPress={onSemiAnnualReport}
+            variant="outline"
+            style={styles.semiAnnualReportBtn}
+          />
+        )}
         {onDone && <AppButton title="Done" onPress={onDone} style={styles.doneBtn} />}
       </View>
     );
@@ -232,7 +262,7 @@ export function ReportPreviewScreen({inspectionId, onDone, onAddPhotos}: ReportP
   const systemModel = inspection.system_model ?? systemInfo?.systemModel ?? '';
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <KeyboardAwareFormScroll style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>
         {serviceType.charAt(0).toUpperCase() + serviceType.slice(1)} Report
       </Text>
@@ -370,9 +400,45 @@ export function ReportPreviewScreen({inspectionId, onDone, onAddPhotos}: ReportP
         </SectionCard>
       )}
 
+      {reportPdf && (
+        <SectionCard title="Report PDF">
+          <Text style={styles.pdfHint}>Preview below — use Share to send or save.</Text>
+          <View style={[styles.pdfFrame, {height: Math.min(520, Math.max(360, windowWidth * 0.85))}]}>
+            <WebView
+              source={{uri: reportPdf.fileUri}}
+              style={styles.pdfWebView}
+              originWhitelist={['*']}
+              scalesPageToFit
+              {...(Platform.OS === 'ios'
+                ? {
+                    allowingReadAccessToURL:
+                      reportPdf.fileUri.replace(/\/[^/]+$/, '/') || reportPdf.fileUri,
+                  }
+                : {})}
+            />
+          </View>
+          <AppButton
+            title="Share report"
+            onPress={async () => {
+              if (!source) return;
+              try {
+                await shareReportFile(reportPdf, source);
+              } catch (e) {
+                const msg = (e as {message?: string})?.message ?? '';
+                if (!msg.includes('User did not share')) {
+                  Alert.alert('Error', msg || 'Could not share report');
+                }
+              }
+            }}
+            variant="outline"
+            style={styles.pdfShareBtn}
+          />
+        </SectionCard>
+      )}
+
       <View style={styles.actions}>
         <AppButton
-          title={generating ? 'Generating...' : 'Generate PDF'}
+          title={generating ? 'Generating...' : reportPdf ? 'Regenerate PDF' : 'Generate PDF'}
           onPress={handleGeneratePdf}
           loading={generating}
           style={styles.primaryBtn}
@@ -384,11 +450,6 @@ export function ReportPreviewScreen({inspectionId, onDone, onAddPhotos}: ReportP
           variant="outline"
           style={styles.shareBtn}
         />
-        {inspection.report_url && (
-          <TouchableOpacity style={styles.viewOnlineBtn} onPress={handleViewOnline}>
-            <Text style={styles.viewOnlineText}>View Online</Text>
-          </TouchableOpacity>
-        )}
         {hasPayment && (
           <AppButton
             title={generatingReceipt ? 'Generating...' : 'Issue Receipt'}
@@ -403,11 +464,19 @@ export function ReportPreviewScreen({inspectionId, onDone, onAddPhotos}: ReportP
             <Text style={styles.viewOnlineText}>Add Photos</Text>
           </TouchableOpacity>
         )}
+        {onSemiAnnualReport && (
+          <AppButton
+            title="Report"
+            onPress={onSemiAnnualReport}
+            variant="outline"
+            style={styles.semiAnnualReportBtn}
+          />
+        )}
         {onDone && (
           <AppButton title="Done" onPress={onDone} variant="outline" style={styles.doneBtn} />
         )}
       </View>
-    </ScrollView>
+    </KeyboardAwareFormScroll>
   );
 }
 
@@ -540,6 +609,9 @@ const styles = StyleSheet.create({
   shareBtn: {
     marginBottom: 12,
   },
+  semiAnnualReportBtn: {
+    marginBottom: 12,
+  },
   receiptBtn: {
     marginBottom: 12,
   },
@@ -555,6 +627,26 @@ const styles = StyleSheet.create({
   },
   doneBtn: {
     marginTop: 0,
+  },
+  pdfHint: {
+    fontSize: 14,
+    color: colors.gray,
+    marginBottom: 12,
+  },
+  pdfFrame: {
+    width: '100%',
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+  },
+  pdfWebView: {
+    flex: 1,
+    backgroundColor: colors.white,
+  },
+  pdfShareBtn: {
+    marginTop: 12,
   },
   errorText: {
     fontSize: 16,

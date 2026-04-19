@@ -13,11 +13,12 @@ index a17a1fc..9ec71aa 100644
  
  @end
 diff --git a/node_modules/react-native-html-to-pdf/ios/HtmlToPdf.mm b/node_modules/react-native-html-to-pdf/ios/HtmlToPdf.mm
-index 4581531..bbf8a6a 100644
+index 4581531..d59ab4c 100644
 --- a/node_modules/react-native-html-to-pdf/ios/HtmlToPdf.mm
 +++ b/node_modules/react-native-html-to-pdf/ios/HtmlToPdf.mm
-@@ -1,7 +1,7 @@
+@@ -1,7 +1,8 @@
  #import "HtmlToPdf.h"
++#import <React/RCTBridgeModule.h>
  #import <React/RCTConvert.h>
 -#import <React/RCTEventDispatcher.h>
  #import <UIKit/UIKit.h>
@@ -25,7 +26,7 @@ index 4581531..bbf8a6a 100644
  
  #define PDFSize CGSizeMake(612, 792)
  
-@@ -33,7 +33,6 @@ - (NSData *)printToPDF:(NSInteger *)_numberOfPages
+@@ -33,7 +34,6 @@ - (NSData *)printToPDF:(NSInteger *)_numberOfPages
  @end
  
  @implementation HtmlToPdf {
@@ -33,7 +34,7 @@ index 4581531..bbf8a6a 100644
    RCTPromiseResolveBlock _resolveBlock;
    RCTPromiseRejectBlock _rejectBlock;
    NSString *_html;
-@@ -43,197 +42,130 @@ @implementation HtmlToPdf {
+@@ -43,197 +43,131 @@ @implementation HtmlToPdf {
    NSInteger _numberOfPages;
    CGSize _PDFSize;
    WKWebView *_webView;
@@ -66,22 +67,26 @@ index 4581531..bbf8a6a 100644
 -}
 -
 -- (void)convert:(JS::NativeHtmlToPdf::PDFOptions &)options
-+- (void)convert:(NSDictionary *)options
-         resolve:(RCTPromiseResolveBlock)resolve
-          reject:(RCTPromiseRejectBlock)reject {
- 
+-        resolve:(RCTPromiseResolveBlock)resolve
+-         reject:(RCTPromiseRejectBlock)reject {
+-
 -  if (options.html()) {
 -    _html = options.html();
 -  }
--
++// Must use RCT_EXPORT_METHOD + resolver/rejecter names or JS never sees `convert` (NativeModules.HtmlToPdf stays empty).
++RCT_EXPORT_METHOD(convert:(NSDictionary *)options
++                  resolver:(RCTPromiseResolveBlock)resolve
++                  rejecter:(RCTPromiseRejectBlock)reject)
++{
++  _html = options[@"html"] ?: @"";
++  _fileName = options[@"fileName"] ?: [[NSProcessInfo processInfo] globallyUniqueString];
+ 
 -  if (options.fileName()) {
 -    _fileName = options.fileName();
 -  } else {
 -    _fileName = [[NSProcessInfo processInfo] globallyUniqueString];
 -  }
-+  _html = options[@"html"] ?: @"";
-+  _fileName = options[@"fileName"] ?: [[NSProcessInfo processInfo] globallyUniqueString];
- 
+-
 -  // Default Color
    _bgColor = [UIColor colorWithRed:(246.0 / 255.0)
                               green:(245.0 / 255.0)
@@ -166,27 +171,27 @@ index 4581531..bbf8a6a 100644
 -  } else {
 -    _paddingLeft = 10.0f;
 -  }
--
--  if (options.paddingTop()) {
--    _paddingTop = float(options.paddingTop().value());
--  } else {
--    _paddingTop = 10.0f;
--  }
 +  _paddingBottom = options[@"paddingBottom"] ? [options[@"paddingBottom"] floatValue] : 10.0f;
 +  _paddingLeft = options[@"paddingLeft"] ? [options[@"paddingLeft"] floatValue] : 10.0f;
 +  _paddingTop = options[@"paddingTop"] ? [options[@"paddingTop"] floatValue] : 10.0f;
 +  _paddingRight = options[@"paddingRight"] ? [options[@"paddingRight"] floatValue] : 10.0f;
  
--  if (options.paddingRight()) {
--    _paddingRight = float(options.paddingRight().value());
+-  if (options.paddingTop()) {
+-    _paddingTop = float(options.paddingTop().value());
 -  } else {
--    _paddingRight = 10.0f;
+-    _paddingTop = 10.0f;
 +  NSNumber *paddingNum = options[@"padding"];
 +  if (paddingNum) {
 +    float p = [paddingNum floatValue];
 +    _paddingTop = _paddingBottom = _paddingLeft = _paddingRight = p;
    }
  
+-  if (options.paddingRight()) {
+-    _paddingRight = float(options.paddingRight().value());
+-  } else {
+-    _paddingRight = 10.0f;
+-  }
+-
 -  if (options.padding()) {
 -    _paddingTop = float(options.padding().value());
 -    _paddingBottom = float(options.padding().value());

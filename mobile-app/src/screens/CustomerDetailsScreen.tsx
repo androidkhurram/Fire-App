@@ -1,5 +1,6 @@
 import React, {useState, useCallback} from 'react';
-import {View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity} from 'react-native';
+import {View, Text, StyleSheet, ActivityIndicator, TouchableOpacity} from 'react-native';
+import {KeyboardAwareFormScroll} from '../components/KeyboardAwareFormScroll';
 import {useFocusEffect} from '@react-navigation/native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {AppButton} from '../components/AppButton';
@@ -16,6 +17,7 @@ interface CustomerDetailsScreenProps {
   onNewMaintenance?: () => void;
   onNewInstallation?: () => void;
   onInspectionHistory?: () => void;
+  onInvoices?: () => void;
   onBack?: () => void;
 }
 
@@ -26,6 +28,7 @@ export function CustomerDetailsScreen({
   onNewMaintenance,
   onNewInstallation,
   onInspectionHistory,
+  onInvoices,
   onBack,
 }: CustomerDetailsScreenProps) {
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -43,7 +46,7 @@ export function CustomerDetailsScreen({
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.accent} />
         </View>
@@ -53,7 +56,7 @@ export function CustomerDetailsScreen({
 
   if (!customer) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
         <View style={styles.centered}>
           <Text style={styles.loadingText}>Customer not found</Text>
           {onBack && <AppButton title="Back" onPress={onBack} style={{marginTop: 16}} />}
@@ -63,8 +66,8 @@ export function CustomerDetailsScreen({
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
+      <KeyboardAwareFormScroll style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.card}>
           <View style={styles.titleRow}>
             <Text style={styles.title}>{customer.business_name}</Text>
@@ -106,8 +109,11 @@ export function CustomerDetailsScreen({
           {onInspectionHistory && (
             <AppButton title="View History" onPress={onInspectionHistory} style={styles.btn} />
           )}
+          {onInvoices && (
+            <AppButton title="Invoices" onPress={onInvoices} style={styles.btn} />
+          )}
         </View>
-      </ScrollView>
+      </KeyboardAwareFormScroll>
     </SafeAreaView>
   );
 }

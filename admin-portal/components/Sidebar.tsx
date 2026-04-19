@@ -14,6 +14,7 @@ const navItems = [
     icon: '📈',
     children: [
       { href: '/reports', label: 'Summary', icon: '📊' },
+      { href: '/installations', label: 'Installations', icon: '🔧' },
       { href: '/inspections', label: 'Inspections', icon: '📋' },
       { href: '/semi-annual-reports', label: 'Inspection Reports', icon: '📄' },
     ],
@@ -28,11 +29,17 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const installationsListActive =
+    pathname === '/installations' || pathname.startsWith('/installations/');
   const inspectionsListActive =
     pathname === '/inspections' || pathname.startsWith('/inspections/');
   const semiAnnualReportsActive =
     pathname === '/semi-annual-reports' || pathname.startsWith('/semi-annual-reports/');
-  const reportsActive = pathname === '/reports' || inspectionsListActive || semiAnnualReportsActive;
+  const reportsActive =
+    pathname === '/reports' ||
+    installationsListActive ||
+    inspectionsListActive ||
+    semiAnnualReportsActive;
   const [reportsExpanded, setReportsExpanded] = useState(reportsActive);
 
   useEffect(() => {
@@ -59,6 +66,7 @@ export function Sidebar() {
             const isActive = (item.children ?? []).some(
               c =>
                 pathname === c.href ||
+                (c.href === '/installations' && installationsListActive) ||
                 (c.href === '/inspections' && inspectionsListActive) ||
                 (c.href === '/semi-annual-reports' && semiAnnualReportsActive)
             );
@@ -86,6 +94,7 @@ export function Sidebar() {
                         href={child.href}
                         className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
                           pathname === child.href ||
+                          (child.href === '/installations' && installationsListActive) ||
                           (child.href === '/inspections' && inspectionsListActive) ||
                           (child.href === '/semi-annual-reports' && semiAnnualReportsActive)
                             ? 'bg-red-600 text-white'

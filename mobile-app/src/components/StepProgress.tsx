@@ -58,29 +58,31 @@ export function StepProgress({steps, currentStep, onStepPress}: StepProgressProp
 }
 
 const styles = StyleSheet.create({
+  /** Keep narrow so wizard form column has more width on tablets / landscape phones */
   container: {
-    width: 180,
-    paddingVertical: 24,
+    width: 148,
+    paddingVertical: 20,
+    paddingRight: 4,
   },
   stepRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   stepNumber: {
-    width: 28,
-    height: 28,
+    width: 26,
+    height: 26,
     borderRadius: 4,
     backgroundColor: colors.lightGray,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 8,
   },
   stepNumberActive: {
     backgroundColor: colors.primary,
   },
   stepNumberText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.gray,
   },
@@ -88,7 +90,8 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   stepTitle: {
-    fontSize: 14,
+    fontSize: 12,
+    lineHeight: 16,
     color: colors.gray,
     flex: 1,
   },

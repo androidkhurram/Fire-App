@@ -8,9 +8,12 @@ import {
   TextInput,
   ActivityIndicator,
   RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import {useHeaderHeight} from '@react-navigation/elements';
 import {useFocusEffect} from '@react-navigation/native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {colors} from '../theme/colors';
 import {dataService, Customer} from '../services/dataService';
 
@@ -24,6 +27,8 @@ interface CustomersListScreenProps {
 export function CustomersListScreen({
   onSelectCustomer,
 }: CustomersListScreenProps) {
+  const headerHeight = useHeaderHeight();
+  const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,7 +86,7 @@ export function CustomersListScreen({
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.accent} />
         </View>
@@ -90,7 +95,11 @@ export function CustomersListScreen({
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
+    <KeyboardAvoidingView
+      style={styles.keyboardAvoid}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+      keyboardVerticalOffset={headerHeight + insets.top}>
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Customers</Text>
@@ -105,6 +114,8 @@ export function CustomersListScreen({
       <FlatList
         data={filteredCustomers}
         keyExtractor={item => item.id}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -134,6 +145,7 @@ export function CustomersListScreen({
         )}
       />
     </View>
+    </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -142,6 +154,9 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  keyboardAvoid: {
+    flex: 1,
   },
   container: {
     flex: 1,

@@ -13,6 +13,7 @@ async function getInspections() {
       *,
       customers(business_name, customer_name)
     `)
+    .or('service_type.is.null,service_type.eq.inspection,service_type.eq.maintenance')
     .order('created_at', { ascending: false });
   if (error) return [];
   return data ?? [];
@@ -107,7 +108,7 @@ export default async function InspectionsPage({
             {inspections.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                  No inspections yet. Create from the iPad app.
+                  No inspections or maintenance records yet. Installations are listed under Installations.
                 </td>
               </tr>
             ) : (

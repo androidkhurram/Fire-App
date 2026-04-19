@@ -46,6 +46,7 @@ export interface DemoInvoice {
   payment_method?: string;
   payment_status?: string;
   pdf_url?: string;
+  customer_signature_data_url?: string;
   created_at: string;
 }
 
@@ -71,6 +72,8 @@ export interface DemoInspection {
   inspectionSetup?: Record<string, unknown>;
   comments?: Record<string, unknown>;
   paymentInfo?: Record<string, unknown>;
+  /** Local file URIs (demo) or remote URLs after upload */
+  photos?: Array<{uri: string; type?: string; name?: string}>;
 }
 
 const generateId = () =>
@@ -304,6 +307,13 @@ export const demoStore = {
     return list.find(i => i.id === id) ?? null;
   },
 
+  async getInvoices(): Promise<DemoInvoice[]> {
+    const list = await loadInvoices();
+    return [...list].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+  },
+
   async getInvoiceItems(): Promise<DemoInvoiceItem[]> {
     const list = await loadInvoiceItems();
     return list.filter(i => i.active).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
@@ -326,6 +336,7 @@ export const demoStore = {
     payment_method?: string;
     payment_status?: string;
     pdf_url?: string;
+    customer_signature_data_url?: string;
     line_items?: Array<{ description: string; price: number; quantity?: number; tax_applied?: boolean; invoice_item_id?: string }>;
   }): Promise<DemoInvoice> {
     const list = await loadInvoices();
@@ -342,6 +353,7 @@ export const demoStore = {
       payment_method: data.payment_method,
       payment_status: data.payment_status,
       pdf_url: data.pdf_url,
+      customer_signature_data_url: data.customer_signature_data_url,
       created_at: new Date().toISOString(),
     };
     list.unshift(invoice);
@@ -411,6 +423,7 @@ export const demoStore = {
     inspectionSetup?: unknown;
     comments?: unknown;
     paymentInfo?: unknown;
+    photos?: Array<{uri: string; type?: string; name?: string}>;
   }): Promise<DemoInspection> {
     const list = await loadInspections();
     const sysInfo = data.systemInfo as {systemBrand?: string | string[]; systemModel?: string} | undefined;
@@ -437,6 +450,7 @@ export const demoStore = {
       inspectionSetup: data.inspectionSetup as Record<string, unknown> | undefined,
       comments: data.comments as Record<string, unknown> | undefined,
       paymentInfo: data.paymentInfo as Record<string, unknown> | undefined,
+      photos: data.photos?.length ? [...data.photos] : undefined,
     };
     list.unshift(inspection);
     inspectionsCache = list;
@@ -460,6 +474,19 @@ export const demoStore = {
     }
 
     return inspection;
+  },
+
+  async appendInspectionPhoto(
+    inspectionId: string,
+    entry: {uri: string; type?: string; name?: string},
+  ): Promise<void> {
+    const list = await loadInspections();
+    const idx = list.findIndex(i => i.id === inspectionId);
+    if (idx < 0) return;
+    const prev = list[idx].photos ?? [];
+    list[idx] = {...list[idx], photos: [...prev, entry]};
+    inspectionsCache = list;
+    await saveInspections();
   },
 
   async setSession(email: string): Promise<void> {

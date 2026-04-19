@@ -1,5 +1,6 @@
 import React, {useState, useEffect} from 'react';
-import {View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity, ActivityIndicator} from 'react-native';
+import {KeyboardAwareFormScroll} from '../../components/KeyboardAwareFormScroll';
 import {StepProgress, type Step} from '../../components/StepProgress';
 import {AppButton} from '../../components/AppButton';
 import {colors} from '../../theme/colors';
@@ -107,7 +108,7 @@ export function SystemChecksStep({
       <View style={styles.sidebar}>
         <StepProgress steps={steps} currentStep={currentStep} onStepPress={onStepSelect} />
       </View>
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
+      <KeyboardAwareFormScroll style={styles.content} contentContainerStyle={styles.contentInner}>
         <Text style={styles.title}>System Checks</Text>
         <View style={styles.checklist}>
           {checkItems.map((item, index) => (
@@ -140,7 +141,7 @@ export function SystemChecksStep({
           <AppButton title="Back" onPress={onBack} variant="outline" style={styles.backBtn} />
           <AppButton title="Save & Continue" onPress={handleSave} style={styles.continueBtn} />
         </View>
-      </ScrollView>
+      </KeyboardAwareFormScroll>
     </View>
   );
 }

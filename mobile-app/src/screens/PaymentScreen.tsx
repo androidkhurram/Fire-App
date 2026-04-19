@@ -1,5 +1,6 @@
 import React, {useState} from 'react';
-import {View, Text, StyleSheet, ScrollView, TouchableOpacity} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity} from 'react-native';
+import {KeyboardAwareFormScroll} from '../components/KeyboardAwareFormScroll';
 import {StepProgress} from '../components/StepProgress';
 import {FormInput} from '../components/FormInput';
 import {AppButton} from '../components/AppButton';
@@ -63,7 +64,7 @@ export function PaymentScreen({
       <View style={styles.sidebar}>
         <StepProgress steps={STEPS} currentStep={2} />
       </View>
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
+      <KeyboardAwareFormScroll style={styles.content} contentContainerStyle={styles.contentInner}>
         <Text style={styles.title}>Term of Payment</Text>
         <Text style={styles.sectionLabel}>Payment Mode</Text>
         <View style={styles.radioRow}>
@@ -118,7 +119,7 @@ export function PaymentScreen({
           <AppButton title="Back" onPress={onBack} variant="outline" style={styles.backBtn} />
           <AppButton title="Save & Continue" onPress={handleSave} style={styles.continueBtn} />
         </View>
-      </ScrollView>
+      </KeyboardAwareFormScroll>
     </View>
   );
 }
